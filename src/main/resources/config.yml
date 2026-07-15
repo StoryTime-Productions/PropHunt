@@ -1,0 +1,5 @@
+join-block: "world,0,64,0"
+game-area: "world,0,64,0"
+exit-area: "world,0,64,0"
+player-limit: 10
+ticket-cost: 1

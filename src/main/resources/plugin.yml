@@ -1,0 +1,42 @@
+name: ${NAME}
+version: ${VERSION}
+main: ${PACKAGE}.PropHunt
+api-version: "26.1"
+author: StoryTimeProductions
+description: Prop Hunt minigame for the StoryTime SMP — players disguised as blocks hide from hunters.
+
+commands:
+  hunt:
+    description: Opens the Hunt game lobby
+    usage: /hunt [join|leave|status]
+    aliases: [huntlobby, huntgame]
+    permission: prophunt.hunt
+    permission-message: You don't have permission to use this command.
+  huntgamemode:
+    description: Manage the Hunt gamemode (Prop Hunt, Imposter Hunt, or Nextbot Hunt)
+    usage: /huntgamemode [prophunt|imposterhunt|nextbothunt]
+    aliases: [huntmode, gamemode]
+  stdisguise:
+    description: Manage entity disguises in the lobby
+    usage: /stdisguise [apply|remove|reload]
+
+permissions:
+  prophunt.hunt:
+    description: Allows access to /hunt
+    default: true
+  prophunt.huntgamemode:
+    description: Allows access to /huntgamemode command
+    default: op
+  prophunt.disguise:
+    description: Allows access to /stdisguise command
+    default: op
+  prophunt.*:
+    description: Grants all PropHunt permissions
+    default: false
+    children:
+      prophunt.hunt: true
+      prophunt.huntgamemode: true
+      prophunt.disguise: true
+
+depend:
+  - LibsDisguises

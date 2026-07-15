@@ -1,0 +1,65 @@
+name: Test and Release
+
+on:
+  push:
+    branches:
+      - 'main'
+  schedule:
+    # PaperMC doesn't change version numbers for latest releases meaning the build may break
+    #   unexpectedly. Build every so often so that we know if a breaking change has been published
+    - cron: '0 0 * * 6'
+
+concurrency:
+  group: ${{ format('{0}-{1}', github.workflow, github.ref) }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Run unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Common Setup
+        uses: ./.github/actions/common-setup
+        with:
+          java-version: 26
+
+      - name: Build with Gradle
+        run: ./gradlew build --info
+
+      - name: Upload build results
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-results
+          path: ${{ github.workspace }}/build/libs/
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: ${{ github.workspace }}/build/reports/
+
+  release:
+    runs-on: ubuntu-latest
+    needs:
+      - test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Common Setup
+        uses: ./.github/actions/common-setup
+        with:
+          java-version: 26
+
+      - name: Publish with Gradle
+        run: ./gradlew -Pver="0.0.0-RC-1" release
+
+      - name: Upload build results
+        uses: actions/upload-artifact@v7
+        with:
+          name: Release Build
+          path: ${{ github.workspace }}/build/libs/

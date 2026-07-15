@@ -1,0 +1,45 @@
+name: Test
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+  merge_group:
+    types:
+      - checks_requested
+
+concurrency:
+  group: ${{ format('{0}-{1}', github.workflow, github.ref) }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Common Setup
+        uses: ./.github/actions/common-setup
+        with:
+          java-version: 26
+
+      - name: Run Spotless
+        run: ./gradlew spotlessApply
+
+      - name: Build with Gradle
+        run: ./gradlew build --info
+
+      - name: Upload build results
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-results
+          path: ${{ github.workspace }}/build/libs/
+
+      - name: Upload test results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-results
+          path: ${{ github.workspace }}/build/reports/
