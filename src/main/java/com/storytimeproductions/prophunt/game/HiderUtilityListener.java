@@ -42,6 +42,11 @@ import org.bukkit.scheduler.BukkitTask;
  */
 public class HiderUtilityListener implements Listener {
 
+  // Max distance (blocks) to ray trace forward looking for a wall to phase through.
+  private static final int PHASE_MAX_DISTANCE = 5;
+  // Max wall thickness (blocks) to search through beyond the point of impact.
+  private static final int PHASE_MAX_WALL_THICKNESS = 4;
+
   private final JavaPlugin plugin;
   private final FileConfiguration config;
   private final Map<UUID, Long> tricksterCooldowns;
@@ -529,158 +534,37 @@ public class HiderUtilityListener implements Listener {
   }
 
   /**
-   * Finds a safe location to teleport the player through a wall they're facing. This method
-   * performs an enhanced search to find any available open space behind walls, not just directly
-   * behind them, allowing for more flexible phasing.
+   * Finds a safe location to teleport the player through the wall they're looking at. Ray traces
+   * along the player's exact look direction to find the wall, then keeps stepping along that same
+   * direction (never sideways/up/down) until it finds an open, safe pocket - so the destination
+   * always stays true to the wall the player was actually facing.
    *
    * @param player The player attempting to phase
    * @return A safe teleport location, or null if no valid location exists
    */
   private Location findPhaseLocation(Player player) {
+    Location eye = player.getEyeLocation();
+    org.bukkit.util.Vector direction = eye.getDirection().normalize();
+
+    org.bukkit.util.RayTraceResult hit =
+        player
+            .getWorld()
+            .rayTraceBlocks(
+                eye, direction, PHASE_MAX_DISTANCE, org.bukkit.FluidCollisionMode.NEVER, true);
+    if (hit == null || hit.getHitBlock() == null) {
+      return null; // No wall in range
+    }
+
+    Location wallEntry = hit.getHitPosition().toLocation(player.getWorld());
     Location playerLocation = player.getLocation();
-    org.bukkit.util.Vector direction = playerLocation.getDirection().normalize();
-
-    // Check up to 5 blocks in front of the player to find a wall
-    for (int distance = 1; distance <= 5; distance++) {
-      Location checkLocation = playerLocation.clone().add(direction.clone().multiply(distance));
-      Block block = checkLocation.getBlock();
-
-      // If we hit a solid block (wall), search for open spaces behind it
-      if (block.getType().isSolid()) {
-        Location bestLocation =
-            findBestLocationBehindWall(checkLocation, direction, playerLocation);
-        if (bestLocation != null) {
-          return bestLocation;
-        }
-        // If we found a wall but no valid space behind it, stop searching
-        break;
+    for (int step = 0; step <= PHASE_MAX_WALL_THICKNESS; step++) {
+      Location candidate = wallEntry.clone().add(direction.clone().multiply(step + 0.5));
+      if (isSafeLocation(candidate)) {
+        return createTeleportLocation(candidate, playerLocation);
       }
     }
 
-    return null; // No valid phase location found
-  }
-
-  /**
-   * Performs an enhanced search for available open spaces behind a wall. This method searches in
-   * multiple directions and distances to find the best teleportation spot.
-   *
-   * @param wallLocation The location of the wall block
-   * @param primaryDirection The primary direction the player is facing
-   * @param playerLocation The player's current location for reference
-   * @return The best safe location to teleport to, or null if none found
-   */
-  private Location findBestLocationBehindWall(
-      Location wallLocation, org.bukkit.util.Vector primaryDirection, Location playerLocation) {
-    // First, try the direct approach (original behavior)
-    Location directLocation = searchDirectPath(wallLocation, primaryDirection, playerLocation);
-    if (directLocation != null) {
-      return directLocation;
-    }
-
-    // If direct approach failed, perform radial search behind the wall
-    return searchRadialPattern(wallLocation, primaryDirection, playerLocation);
-  }
-
-  /**
-   * Searches for a safe location directly behind the wall in the primary direction.
-   *
-   * @param wallLocation The location of the wall block
-   * @param primaryDirection The primary direction the player is facing
-   * @param playerLocation The player's current location for reference
-   * @return A safe location directly behind the wall, or null if none found
-   */
-  private Location searchDirectPath(
-      Location wallLocation, org.bukkit.util.Vector primaryDirection, Location playerLocation) {
-    for (int beyondDistance = 1; beyondDistance <= 4; beyondDistance++) {
-      Location directLocation =
-          wallLocation.clone().add(primaryDirection.clone().multiply(beyondDistance));
-      if (isSafeLocation(directLocation)) {
-        return createTeleportLocation(directLocation, playerLocation);
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Searches for a safe location using a radial pattern behind the wall.
-   *
-   * @param wallLocation The location of the wall block
-   * @param primaryDirection The primary direction the player is facing
-   * @param playerLocation The player's current location for reference
-   * @return A safe location found through radial search, or null if none found
-   */
-  private Location searchRadialPattern(
-      Location wallLocation, org.bukkit.util.Vector primaryDirection, Location playerLocation) {
-    // Search in a 3D grid pattern behind the wall
-    for (int beyondDistance = 1; beyondDistance <= 4; beyondDistance++) {
-      Location baseLocation =
-          wallLocation.clone().add(primaryDirection.clone().multiply(beyondDistance));
-
-      Location foundLocation = searchAroundBase(baseLocation, playerLocation);
-      if (foundLocation != null) {
-        return foundLocation;
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Searches for a safe location in expanding radius around a base location.
-   *
-   * @param baseLocation The base location to search around
-   * @param playerLocation The player's current location for reference
-   * @return A safe location around the base, or null if none found
-   */
-  private Location searchAroundBase(Location baseLocation, Location playerLocation) {
-    // Search in expanding radius around the base location
-    for (int radius = 0; radius <= 2; radius++) {
-      // Check locations at different heights
-      for (int y = -1; y <= 2; y++) {
-        if (radius == 0 && y == 0) {
-          continue; // Skip center (already checked in direct path)
-        }
-
-        Location foundLocation = searchRadiusLevel(baseLocation, radius, y, playerLocation);
-        if (foundLocation != null) {
-          return foundLocation;
-        }
-      }
-    }
-    return null;
-  }
-
-  /**
-   * Searches for a safe location at a specific radius and height level.
-   *
-   * @param baseLocation The base location to search around
-   * @param radius The radius to search at
-   * @param yOffset The height offset to search at
-   * @param playerLocation The player's current location for reference
-   * @return A safe location at this radius/height, or null if none found
-   */
-  private Location searchRadiusLevel(
-      Location baseLocation, int radius, int y, Location playerLocation) {
-    // Check locations in a square pattern around the base
-    for (int x = -radius; x <= radius; x++) {
-      for (int z = -radius; z <= radius; z++) {
-        // Only check edge positions for this radius to avoid redundant checks
-        if (radius > 0 && Math.abs(x) != radius && Math.abs(z) != radius) {
-          continue;
-        }
-
-        Location candidateLocation = baseLocation.clone().add(x, y, z);
-
-        // Skip locations that are too close to the player's original position
-        if (candidateLocation.distance(playerLocation) < 2.0) {
-          continue;
-        }
-
-        if (isSafeLocation(candidateLocation)) {
-          return createTeleportLocation(candidateLocation, playerLocation);
-        }
-      }
-    }
-    return null;
+    return null; // Wall too thick to phase through
   }
 
   /**
