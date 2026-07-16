@@ -74,7 +74,7 @@ repositories {
 
 dependencies {
     paperweight.paperDevBundle('26.1.2.build.+')
-    compileOnly 'me.libraryaddict.disguises:libsdisguises:11.0.16'
+    compileOnly 'me.libraryaddict.disguises:libsdisguises:11.0.18'
     compileOnly 'com.github.retrooper:packetevents-spigot:2.13.0'
     compileOnly 'com.github.spotbugs:spotbugs-annotations:4.9.8'
     implementation 'io.papermc:paperlib:1.0.8'
