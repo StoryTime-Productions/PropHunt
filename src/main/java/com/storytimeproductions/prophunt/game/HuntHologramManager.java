@@ -115,7 +115,10 @@ public class HuntHologramManager {
               d.setAlignment(TextDisplay.TextAlignment.CENTER);
               d.setDefaultBackground(false);
               d.setSeeThrough(false);
-              d.setPersistent(false);
+              // Persistent so chunk unload/reload doesn't silently discard the hologram before a
+              // player ever sees it - initialize() already wipes and respawns every hologram on
+              // enable, so persistence can't create stale duplicates.
+              d.setPersistent(true);
               d.getPersistentDataContainer().set(hologramKey, PersistentDataType.BYTE, (byte) 1);
             });
     displays.put(id, display);
@@ -127,7 +130,7 @@ public class HuntHologramManager {
             i -> {
               i.setInteractionWidth(1.0f);
               i.setInteractionHeight(0.5f);
-              i.setPersistent(false);
+              i.setPersistent(true);
               i.getPersistentDataContainer().set(hologramKey, PersistentDataType.BYTE, (byte) 1);
               i.getPersistentDataContainer().set(hologramIdKey, PersistentDataType.STRING, id);
             });
