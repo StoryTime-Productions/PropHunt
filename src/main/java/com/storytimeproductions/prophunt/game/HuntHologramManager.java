@@ -106,6 +106,12 @@ public class HuntHologramManager {
     }
     Location loc =
         new Location(world, section.getDouble("x"), section.getDouble("y"), section.getDouble("z"));
+
+    // Force the chunk to stay loaded so the entities are never cleaned up server-side. Relying on
+    // setPersistent(true) alone is not enough on this Paper build - EDEN's CorridorDisplayManager
+    // hit the identical issue with its own Display entities and needed this same chunk ticket.
+    loc.getChunk().addPluginChunkTicket(plugin);
+
     TextDisplay display =
         world.spawn(
             loc,
