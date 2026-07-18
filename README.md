@@ -6,13 +6,7 @@
   <img src="https://img.shields.io/badge/Java-26-orange" alt="Java 26" />
 </p>
 
-PropHunt is a PaperMC plugin for the StoryTime SMP — a Prop Hunt minigame where hiders disguise themselves as blocks and NPCs scattered around a map while hunters try to sniff them out before the timer runs out.
-
-### Why PropHunt?
-
-- We're looking to give the community a tense, replayable social minigame that rewards map knowledge and misdirection over raw combat skill.
-- We're looking to make hiding genuinely funny with block/entity disguises, not just a hide-in-a-corner exercise.
-- We're looking to express ourselves creatively through hand-built maps, class kits, and alternate game modes built on the same core loop.
+PropHunt is a PaperMC plugin for the StoryTime SMP — a Prop Hunt minigame where hiders disguise themselves as blocks while hunters try to sniff them out before the timer runs out.
 
 Contributions, ideas, or feature requests are always welcome!
 
@@ -24,8 +18,8 @@ Contributions, ideas, or feature requests are always welcome!
 - **Prop Hunt**: hiders disguise as blocks/entities and hide; hunters are locked in and blinded for a countdown, then released to hunt. A proximity-based heartbeat system warns hiders when a hunter closes in.
 - **Hunter classes**: Brute, Nimble, Saboteur — distinct speed/damage modifiers, weapons, and a unique utility ability on a cooldown.
 - **Hider classes**: Trickster, Phaser, Cloaker — each with a unique utility ability, plus a shared block-disguise ability.
-- **Imposter Hunt**: an alternate gamemode with murderer/sheriff/innocent roles, a coin economy, and zapper weapons instead of team-based hide-and-seek.
-- **NextBot Hunt**: an alternate gamemode where every player is a hider.
+- **Imposter Hunt** *(upcoming)*: an alternate gamemode with murderer/sheriff/innocent roles, a coin economy, and zapper weapons instead of team-based hide-and-seek.
+- **NextBot Hunt** *(upcoming)*: an alternate gamemode where every player is a hider.
 - **Maps**: Warehouse, Factory, and Mansion, each with configurable hunter/hider spawn points, voted on during the prep phase.
 - **Disguises**: block and NPC disguises via LibsDisguises, including armor-stand NPC decoys placed around the lobby.
 
@@ -99,7 +93,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). In short: fork the repo, create a featur
 ## Roadmap
 
 - [x] Prop Hunt core loop (lobby, prep phase, hunter/hider classes, disguises)
-- [x] Imposter Hunt gamemode
+- [ ] Imposter Hunt gamemode (framework in place, mode-specific logic pending)
 - [ ] NextBot Hunt gamemode (framework in place, mode-specific logic pending)
 - [ ] Public playtest release
 
