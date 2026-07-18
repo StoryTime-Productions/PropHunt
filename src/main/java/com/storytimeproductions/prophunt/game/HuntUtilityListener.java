@@ -38,8 +38,12 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Vector;
 
 /**
- * Listener that handles the logic for hunter utility item abilities. Each hunter class has a unique
- * utility item with special abilities and cooldowns.
+ * Implements each hunter class's utility item ability (Brute's Shockwave, Nimble's Dash, Saboteur's
+ * Scanner) and their cooldowns. Also owns the persistent, unified ability-status action bar shown
+ * to every hunter and hider - merging in a hider's heartbeat proximity warning (from {@link
+ * HuntPrepPhaseManager}) and idle-spotlight countdown (from {@link HuntSpotlightListener}) as
+ * leading segments so the several independent tension systems don't fight over the action bar slot
+ * - see specs/ability-status-actionbar.md.
  */
 public class HuntUtilityListener implements Listener {
 

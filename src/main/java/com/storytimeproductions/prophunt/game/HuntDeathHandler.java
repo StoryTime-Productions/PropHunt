@@ -35,8 +35,11 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
 /**
- * Handles player deaths in Hunt games. Instead of letting players actually die, they are put into
- * spectator mode until the game ends.
+ * Handles player elimination, PvP rule enforcement, and win-condition detection for Hunt games.
+ * Players are never allowed to actually die - reaching 0 HP puts them into spectator mode instead,
+ * tracked here until the round ends. Also enforces the team-based PvP rules (hunters can damage
+ * hiders, not vice versa, with a narrow Trickster stun-on-hit exception - see
+ * specs/trickster-stun-on-hit.md) and checks after every elimination whether a team has won.
  */
 public class HuntDeathHandler implements Listener {
   private final JavaPlugin plugin;

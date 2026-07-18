@@ -25,7 +25,12 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
-/** Manages the Imposter Hunt gamemode including role assignment, game flow, and win conditions. */
+/**
+ * Manages the Imposter Hunt gamemode end to end: assigns murderer/sheriff/innocent roles at round
+ * start, tracks round state and the game timer, and evaluates win conditions (murderer eliminated,
+ * murderer wins by attrition, etc.). Works alongside {@link ImposterCoinManager} for the coin
+ * economy and {@link ImposterListener} for in-round event handling.
+ */
 public class ImposterGameManager {
   private final JavaPlugin plugin;
   private final FileConfiguration config;

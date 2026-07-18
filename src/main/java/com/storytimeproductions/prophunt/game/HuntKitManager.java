@@ -10,8 +10,10 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
- * Manages item kits for Hunt game classes. Handles giving and removing class-specific items to
- * players.
+ * Manages item kits for Hunt game classes: gives/removes each hunter and hider class's weapons and
+ * utility items, and applies the passive potion-effect/attribute modifiers tied to a hunter class
+ * after they've been teleported to the map. Hiders receive no armor by design, to keep their
+ * silhouette from giving away that they're a player rather than a real block.
  */
 public class HuntKitManager {
   /**

@@ -22,7 +22,13 @@ import org.bukkit.entity.TextDisplay;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/** Manages holograms for the Hunt game system using Text Display entities. */
+/**
+ * Manages every hologram in the Hunt lobby - class/team selection, map voting, gamemode display,
+ * ready status - built from {@code TextDisplay} entities paired with an invisible {@code
+ * Interaction} entity (routed to the right handler by {@link HuntHologramClickListener}) so they
+ * can be right-clicked. Tracks which players are currently listed on each hologram and persists
+ * enough identifying data via {@link NamespacedKey}s to recover holograms after a chunk unload.
+ */
 public class HuntHologramManager {
 
   private final JavaPlugin plugin;

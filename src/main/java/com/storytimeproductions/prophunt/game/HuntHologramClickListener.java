@@ -6,7 +6,13 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 
-/** Routes right-click interactions on hologram Interaction entities to the appropriate handler. */
+/**
+ * Routes right-clicks on hologram {@code Interaction} entities to the appropriate handler based on
+ * which hologram was clicked: class/map selection goes to {@link HuntCommand}'s routing logic,
+ * ready/start-game clicks go to {@link HuntPrepPhaseManager}, and gamemode cycling goes to {@link
+ * HuntGameModeManager}. Exists because holograms themselves have no click handling of their own -
+ * {@link HuntHologramManager} attaches an invisible {@code Interaction} entity to each one.
+ */
 public class HuntHologramClickListener implements Listener {
 
   private final HuntHologramManager hologramManager;

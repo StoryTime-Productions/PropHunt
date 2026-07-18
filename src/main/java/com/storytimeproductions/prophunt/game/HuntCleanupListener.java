@@ -14,8 +14,11 @@ import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
- * Handles cleanup events for the Hunt game system. Removes players from holograms and clears their
- * items when they disconnect or change worlds.
+ * Handles cleanup for players who genuinely leave the Hunt experience - disconnecting, or moving
+ * from a hunt world to a non-hunt one. Clears kit, disguise, cooldowns, and passive-ability state
+ * across every relevant manager/listener. Deliberately does <em>not</em> fire when a player moves
+ * between two hunt worlds (e.g. lobby to a map, or a round-end return to lobby), since kit/class
+ * selection are meant to persist across rounds.
  */
 public class HuntCleanupListener implements Listener {
 

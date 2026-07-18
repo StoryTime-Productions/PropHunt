@@ -4,7 +4,11 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/** Manages the current Hunt game mode and handles mode switching. */
+/**
+ * Tracks which Hunt gamemode (Prop Hunt, Imposter Hunt, or NextBot Hunt) is currently active and
+ * handles switching between them - clearing lobby/kit/disguise/hologram state that's specific to
+ * the outgoing mode so a mode switch starts from a clean slate.
+ */
 public class HuntGameModeManager {
   private final JavaPlugin plugin;
   private HuntGameMode currentGameMode;

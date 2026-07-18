@@ -30,7 +30,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/** Main plugin class for PropHunt. */
+/**
+ * Main plugin class for PropHunt. Constructs every manager and listener on {@link #onEnable()} and
+ * wires their cross-dependencies together (most classes here need a handful of the others - see the
+ * constructor calls and {@code setXxx} wiring in {@code onEnable()} for the exact dependency
+ * graph), then registers the {@code /hunt}, {@code /huntgamemode}, and {@code /stdisguise} commands
+ * from {@link com.storytimeproductions.prophunt.commands}.
+ */
 public class PropHunt extends JavaPlugin {
 
   private static PropHunt instance;

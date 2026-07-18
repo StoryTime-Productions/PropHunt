@@ -31,8 +31,13 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 
 /**
- * Manages the prep phase of Hunt games including map voting, player readiness tracking, countdown,
- * and game initialization.
+ * Owns the full Hunt round lifecycle: map voting and ready-status tracking during the lobby prep
+ * phase, the countdown and hunter lock-in that start a round, the round timer, win-condition
+ * hand-off to {@link HuntDeathHandler}, and returning everyone to the lobby (and restarting prep
+ * phase) once a round ends. Also drives the two proximity-based tension systems layered on top of
+ * the core loop - the distance-scaled heartbeat warning and the "recently hurt" combat-tension
+ * state (elevated heartbeat plus a raid-bell alarm that persists until a hider actually escapes) -
+ * see specs/proximity-tier-loops.md and specs/recently-hurt-tension.md.
  */
 public class HuntPrepPhaseManager {
   private final JavaPlugin plugin;

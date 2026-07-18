@@ -21,7 +21,11 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 
-/** Manages the coin system for the Imposter Hunt gamemode. */
+/**
+ * Manages Imposter Hunt's coin economy: periodically spawns pickup-able coin items around the map,
+ * and credits a player's {@link ImposterPlayerData} balance on pickup. Coins are the currency
+ * players spend on role-specific tools during a round.
+ */
 public class ImposterCoinManager implements Listener {
   private final JavaPlugin plugin;
   private final FileConfiguration config;
