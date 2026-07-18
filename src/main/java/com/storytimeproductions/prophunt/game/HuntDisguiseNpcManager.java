@@ -1,5 +1,7 @@
 package com.storytimeproductions.prophunt.game;
 
+import com.github.retrooper.packetevents.PacketEvents;
+import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityHeadLook;
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
 import io.papermc.paper.profile.MutablePropertyMap;
@@ -15,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundMoveEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
@@ -43,6 +46,7 @@ import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitTask;
 
 /**
  * Spawns fake-player NPCs for the Hunt disguise preview stands using client-only entity packets.
@@ -68,6 +72,9 @@ public class HuntDisguiseNpcManager implements Listener {
 
   // Use a different range from Eden's 100_000_000 counter
   private static final AtomicInteger FAKE_ID_COUNTER = new AtomicInteger(200_000_000);
+  private static final long STARE_INTERVAL_TICKS = 4L;
+
+  private BukkitTask stareTask;
 
   /**
    * Constructs a new HuntDisguiseNpcManager.
@@ -186,10 +193,87 @@ public class HuntDisguiseNpcManager implements Listener {
     }
 
     plugin.getLogger().info("Hunt disguise NPCs loaded: " + npcs.size());
+
+    startStareTask();
+  }
+
+  /**
+   * (Re)starts the repeating task that turns each NPC to face any player standing within
+   * stare-distance. Purely visual and sent only to the nearby viewer — other players see the NPC at
+   * its default facing.
+   */
+  private void startStareTask() {
+    if (stareTask != null) {
+      stareTask.cancel();
+      stareTask = null;
+    }
+
+    double stareDistance = huntConfig.getDouble("hunt.disguise.stare-distance", 6.0);
+    if (stareDistance <= 0.0 || npcs.isEmpty()) {
+      return;
+    }
+    double stareDistanceSquared = stareDistance * stareDistance;
+
+    stareTask =
+        plugin
+            .getServer()
+            .getScheduler()
+            .runTaskTimer(
+                plugin,
+                () -> updateStareRotations(stareDistanceSquared),
+                20L,
+                STARE_INTERVAL_TICKS);
+  }
+
+  private void updateStareRotations(double stareDistanceSquared) {
+    for (Player player : Bukkit.getOnlinePlayers()) {
+      if (!isInHuntWorld(player)) {
+        continue;
+      }
+      net.minecraft.server.level.ServerPlayer nmsViewer = ((CraftPlayer) player).getHandle();
+      Location eyeLoc = player.getEyeLocation();
+
+      for (DisguiseNpc npc : npcs) {
+        Integer fakeId = npcEntityIds.get(npc.id());
+        if (fakeId == null) {
+          continue;
+        }
+
+        Location npcLoc = npc.location();
+        float targetYaw;
+        float targetPitch;
+        if (npcLoc.distanceSquared(eyeLoc) <= stareDistanceSquared) {
+          double dx = eyeLoc.getX() - npcLoc.getX();
+          double dy = eyeLoc.getY() - (npcLoc.getY() + 1.62);
+          double dz = eyeLoc.getZ() - npcLoc.getZ();
+          double distanceXz = Math.sqrt(dx * dx + dz * dz);
+          targetYaw = (float) (Math.toDegrees(Math.atan2(dz, dx)) - 90.0);
+          targetPitch = (float) -Math.toDegrees(Math.atan2(dy, distanceXz));
+        } else {
+          targetYaw = npcLoc.getYaw();
+          targetPitch = 0f;
+        }
+
+        byte yawByte = (byte) (targetYaw * 256.0F / 360.0F);
+        byte pitchByte = (byte) (targetPitch * 256.0F / 360.0F);
+        nmsViewer.connection.send(
+            new ClientboundMoveEntityPacket.Rot(fakeId, yawByte, pitchByte, false));
+        // Body yaw (above) is client-interpolated over several ticks and doesn't drive
+        // horizontal head turning for PLAYER-type entities — head yaw is a separate value
+        // that needs its own packet. See specs/npc-stare-head-yaw.md for why.
+        PacketEvents.getAPI()
+            .getPlayerManager()
+            .sendPacket(player, new WrapperPlayServerEntityHeadLook(fakeId, targetYaw));
+      }
+    }
   }
 
   /** Removes all fake NPC entities from all clients and cleans up server-side interactions. */
   public void despawnAll() {
+    if (stareTask != null) {
+      stareTask.cancel();
+      stareTask = null;
+    }
     for (DisguiseNpc npc : npcs) {
       Integer fakeId = npcEntityIds.get(npc.id());
       if (fakeId == null) {

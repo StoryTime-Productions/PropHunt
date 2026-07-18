@@ -8,7 +8,6 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
-import me.libraryaddict.disguise.DisguiseAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -45,6 +44,7 @@ public class HuntPrepPhaseManager {
   private final HuntGameModeManager gameModeManager;
   private final ImposterGameManager imposterGameManager;
   private HuntDeathHandler deathHandler; // Reference to death handler for counting hiders
+  private HuntSpotlightListener spotlightListener; // For clearing idle-spotlight state on end
 
   // Voting and ready status tracking
   private final Map<UUID, HuntMap> playerMapVotes;
@@ -65,6 +65,18 @@ public class HuntPrepPhaseManager {
 
   // Individual heartbeat tasks for each hider (proximity-based)
   private final Map<UUID, BukkitRunnable> hiderHeartbeatTasks = new HashMap<>();
+
+  // Current heartbeat warning per hider, if any - tracked here instead of sent directly via
+  // sendActionBar() so HuntUtilityListener's unified ability status action bar can merge it in
+  // as one segment instead of the two systems fighting over the action bar slot.
+  private final Map<UUID, Component> currentHeartbeatMessages = new HashMap<>();
+
+  // "Recently hurt" combat-tension state - see specs/recently-hurt-tension.md.
+  // Independent of the proximity heartbeat above: driven by hits, not hunter distance.
+  private final Map<UUID, Long> lastHitTimestamps = new HashMap<>();
+  private final Set<UUID> hidersInHurtState = new HashSet<>();
+  private final Map<UUID, BukkitRunnable> hurtHeartbeatTasks = new HashMap<>();
+  private final Map<UUID, BukkitRunnable> hurtBellRepeatTasks = new HashMap<>();
 
   // Game participants (only ready players)
   private final Map<UUID, HuntTeam> gameParticipants;
@@ -142,6 +154,13 @@ public class HuntPrepPhaseManager {
       mapVoteCounts.put(map, 0);
     }
 
+    // Refresh class/map/gamemode holograms so they show text even if startup timing was off.
+    // Must run before resyncPersistedPlayerSelections() below - it clears all class-selection
+    // state, so anything resynced (or already set by the player whose own click triggered this
+    // prep phase) needs to be written after this clear, not before.
+    hologramManager.initializeClassHologramTitles();
+    hologramManager.updateGameModeDisplay(gameModeManager.getCurrentGameMode());
+
     // Re-sync any player who already has a persisted team+class from a previous round so
     // they don't have to reselect their role every round (map vote is intentionally excluded -
     // players vote fresh each round).
@@ -155,10 +174,6 @@ public class HuntPrepPhaseManager {
 
     // Update start game hologram to initial state
     updateStartGameHologram();
-
-    // Refresh class/map/gamemode holograms so they show text even if startup timing was off
-    hologramManager.initializeClassHologramTitles();
-    hologramManager.updateGameModeDisplay(gameModeManager.getCurrentGameMode());
 
     // Notify all players
     for (Player player : Bukkit.getOnlinePlayers()) {
@@ -192,6 +207,15 @@ public class HuntPrepPhaseManager {
           team == HuntTeam.HUNTERS
               ? ((HunterClass) classSelection).name().toLowerCase()
               : ((HiderClass) classSelection).name().toLowerCase();
+
+      // addPlayerToClass toggles: calling it for a player whose hologram-side selection
+      // already matches their persisted data (e.g. the player whose own click just
+      // triggered this resync) would un-select them instead of leaving them alone.
+      String hologramId = (team == HuntTeam.HUNTERS ? "hunter_" : "hider_") + className;
+      if (hologramId.equals(hologramManager.getPlayerClassSelection(player.getUniqueId()))) {
+        allPlayerSelections.put(player.getUniqueId(), team);
+        continue;
+      }
 
       hologramManager.addPlayerToClass(
           player.getUniqueId(), player.getName(), className, team == HuntTeam.HUNTERS);
@@ -230,6 +254,11 @@ public class HuntPrepPhaseManager {
       }
     }
     hiderHeartbeatTasks.clear();
+    currentHeartbeatMessages.clear();
+    clearAllHurtTensionState();
+    if (spotlightListener != null) {
+      spotlightListener.clearAllState();
+    }
 
     removePlayersFromAllHolograms();
 
@@ -1147,9 +1176,20 @@ public class HuntPrepPhaseManager {
               net.kyori.adventure.text.format.NamedTextColor.YELLOW));
       return;
     }
-    gameActive = true; // allow endGame to proceed
-    endPrepPhase();
-    endGame(HuntTeam.HUNTERS); // neutral winner for forced end
+    if (prepPhaseActive && !gameStarting && !gameActive) {
+      // Still purely in prep phase - players never left the lobby, so there's no round to end
+      // and no one to retrieve from a map. Running the full endGame()/teleport sequence here
+      // previously auto-restarted a brand new prep phase immediately afterward (see
+      // specs/force-end-during-prep-phase.md) - an admin's "abort" looked like the game just
+      // kept going.
+      endPrepPhase();
+    } else {
+      // Mid lock-in/countdown or an active round - players are actually on a map and need to
+      // be retrieved, so run the full sequence as normal.
+      endPrepPhase();
+      gameActive = true; // allow endGame to proceed
+      endGame(HuntTeam.HUNTERS); // neutral winner for forced end
+    }
     sender.sendMessage(
         net.kyori.adventure.text.Component.text(
             "Hunt round force-ended.", net.kyori.adventure.text.format.NamedTextColor.GREEN));
@@ -1200,6 +1240,11 @@ public class HuntPrepPhaseManager {
       }
     }
     hiderHeartbeatTasks.clear();
+    currentHeartbeatMessages.clear();
+    clearAllHurtTensionState();
+    if (spotlightListener != null) {
+      spotlightListener.clearAllState();
+    }
 
     // Remove boss bar
     if (gameTimerBar != null) {
@@ -1283,21 +1328,31 @@ public class HuntPrepPhaseManager {
     hologramManager.updateStartGameDisplay(canStartGame());
   }
 
+  /** True once this player meets the current gamemode's requirements (team, class, map vote). */
+  private boolean isPlayerReadyToStart(UUID playerId, HuntGameModeStrategy strategy) {
+    Player player = Bukkit.getPlayer(playerId);
+    if (player == null) {
+      return false;
+    }
+    HuntPlayerData data = lobbyManager.getPlayerData(playerId);
+    return strategy.canPlayerReady(player, data, playerMapVotes, hologramManager).canReady();
+  }
+
   private boolean canStartGame() {
     HuntGameMode currentMode = gameModeManager.getCurrentGameMode();
     HuntGameModeStrategy strategy = HuntGameModeStrategyFactory.getStrategy(currentMode);
 
-    // Get all ready players who meet the gamemode requirements
+    // A player is ready the moment they meet the gamemode's requirements (team, class, map
+    // vote) - no separate explicit ready toggle needed.
     List<UUID> readyPlayers = new ArrayList<>();
     for (Player player : Bukkit.getOnlinePlayers()) {
       UUID playerId = player.getUniqueId();
       HuntPlayerData data = lobbyManager.getPlayerData(playerId);
 
-      // Check if player meets the requirements for this gamemode and is ready
       HuntGameModeStrategy.ReadyResult readyResult =
           strategy.canPlayerReady(player, data, playerMapVotes, hologramManager);
 
-      if (readyResult.canReady() && Boolean.TRUE.equals(playerReadyStatus.get(playerId))) {
+      if (readyResult.canReady()) {
         readyPlayers.add(playerId);
       }
     }
@@ -1392,17 +1447,19 @@ public class HuntPrepPhaseManager {
                       playersWithMapVotes + "/" + playersWithClassSelections, NamedTextColor.WHITE))
               .append(Component.text(")", NamedTextColor.GRAY));
 
+      // A player is ready the moment they meet the requirements (team, class, map vote) - no
+      // separate explicit ready toggle needed.
       long readyHunters =
           gameParticipants.entrySet().stream()
               .filter(entry -> entry.getValue() == HuntTeam.HUNTERS)
-              .filter(entry -> Boolean.TRUE.equals(playerReadyStatus.get(entry.getKey())))
+              .filter(entry -> isPlayerReadyToStart(entry.getKey(), strategy))
               .count();
       long totalHunters =
           gameParticipants.values().stream().filter(team -> team == HuntTeam.HUNTERS).count();
       long readyHiders =
           gameParticipants.entrySet().stream()
               .filter(entry -> entry.getValue() == HuntTeam.HIDERS)
-              .filter(entry -> Boolean.TRUE.equals(playerReadyStatus.get(entry.getKey())))
+              .filter(entry -> isPlayerReadyToStart(entry.getKey(), strategy))
               .count();
       long totalHiders =
           gameParticipants.values().stream().filter(team -> team == HuntTeam.HIDERS).count();
@@ -1442,17 +1499,17 @@ public class HuntPrepPhaseManager {
     HuntGameMode currentMode = gameModeManager.getCurrentGameMode();
     HuntGameModeStrategy strategy = HuntGameModeStrategyFactory.getStrategy(currentMode);
 
-    // Get all ready players
+    // A player is ready the moment they meet the gamemode's requirements - no separate
+    // explicit ready toggle needed.
     List<UUID> readyPlayers = new ArrayList<>();
     for (Player player : Bukkit.getOnlinePlayers()) {
       UUID playerId = player.getUniqueId();
       HuntPlayerData data = lobbyManager.getPlayerData(playerId);
 
-      // Check if player meets the requirements for this gamemode and is ready
       HuntGameModeStrategy.ReadyResult readyResult =
           strategy.canPlayerReady(player, data, playerMapVotes, hologramManager);
 
-      if (readyResult.canReady() && Boolean.TRUE.equals(playerReadyStatus.get(playerId))) {
+      if (readyResult.canReady()) {
         readyPlayers.add(playerId);
       }
     }
@@ -1715,13 +1772,17 @@ public class HuntPrepPhaseManager {
    * fireworks finish.
    */
   public void teleportAllPlayersToLobby() {
-    // Get the lobby location from config
-    String worldName = config.getString("lobby.world", "world");
-    double x = config.getDouble("lobby.x", 0);
-    double y = config.getDouble("lobby.y", 64);
-    double z = config.getDouble("lobby.z", 0);
-    float yaw = (float) config.getDouble("lobby.yaw", 0);
-    float pitch = (float) config.getDouble("lobby.pitch", 0);
+    // Get the actual hunt lobby location from config - "lobby.*" was never a real config
+    // section in hunt.yml (only "hunt.world"/"hunt.spawn.*" are), so this always silently fell
+    // back to a bogus intermediate world/location, which in turn made HuntCleanupListener treat
+    // this as "left the hunt experience" and strip kit/disguise/size before the follow-up
+    // /hunt command could bring the player back (see specs/lobby-return-persistence.md).
+    String worldName = config.getString("hunt.world", "hunt");
+    double x = config.getDouble("hunt.spawn.x", 0.0);
+    double y = config.getDouble("hunt.spawn.y", 65.0);
+    double z = config.getDouble("hunt.spawn.z", 0.0);
+    float yaw = (float) config.getDouble("hunt.spawn.yaw", 0.0);
+    float pitch = (float) config.getDouble("hunt.spawn.pitch", 0.0);
 
     Location lobbyLocation = new Location(Bukkit.getWorld(worldName), x, y, z, yaw, pitch);
 
@@ -1731,7 +1792,11 @@ public class HuntPrepPhaseManager {
       plugin.getLogger().warning("Lobby world not found. Using default world spawn instead.");
     }
 
-    // Teleport all players in hunt worlds to the lobby
+    // Teleport all players in hunt worlds directly to the real hunt lobby - kit, disguise, and
+    // entity size are intentionally left untouched so they persist into the lobby, matching a
+    // round ending rather than a fresh /hunt join (which still clears everything via
+    // HuntCommand.teleportToHuntSpawn/clearPlayerForHuntLobby).
+    Location finalLobbyLocation = lobbyLocation;
     for (Player player : Bukkit.getOnlinePlayers()) {
       if (player.getWorld().getName().toLowerCase().contains("hunt")) {
         // Reset ready flag so the lobby menu reflects the new prep phase state
@@ -1740,36 +1805,48 @@ public class HuntPrepPhaseManager {
         // Reset game mode to adventure
         player.setGameMode(GameMode.ADVENTURE);
 
-        // Remove any potion effects
+        // Remove any potion effects - short-lived combat buffs, not part of what should
+        // persist (kit/disguise/size are - see specs/lobby-return-persistence.md)
         for (PotionEffect effect : player.getActivePotionEffects()) {
           player.removePotionEffect(effect.getType());
         }
 
-        // Remove disguises if any
-        if (DisguiseAPI.isDisguised(player)) {
-          DisguiseAPI.undisguiseToAll(player);
-        }
-
-        org.bukkit.attribute.AttributeInstance scaleAttr =
-            player.getAttribute(org.bukkit.attribute.Attribute.SCALE);
-        if (scaleAttr != null) {
-          scaleAttr.setBaseValue(1.0);
-        }
-
-        // Auto-run hunt command to bring them back to Hunt lobby after a short delay
+        player.teleport(finalLobbyLocation);
         Bukkit.getScheduler()
             .runTaskLater(
                 plugin,
                 () -> {
-                  if (player.isOnline()) {
-                    player.performCommand("hunt");
-                    player.sendMessage(
-                        Component.text("Returning you to Hunt lobby...", NamedTextColor.YELLOW));
+                  if (!player.isOnline()) {
+                    return;
+                  }
+                  // Only re-apply if something (e.g. Multiverse) actually moved the player
+                  // away from the lobby in the interim - re-teleporting unconditionally here
+                  // caused a visible double-teleport on every normal round end (see
+                  // specs/double-teleport-to-lobby.md).
+                  Location current = player.getLocation();
+                  boolean driftedAway =
+                      current.getWorld() == null
+                          || !current.getWorld().equals(finalLobbyLocation.getWorld())
+                          || current.distanceSquared(finalLobbyLocation) > 1.0;
+                  if (driftedAway) {
+                    player.teleport(finalLobbyLocation);
                   }
                 },
-                40L); // 2 seconds delay
+                2L); // Matches HuntCommand#teleportToHuntSpawn's delay for the same
+        // world-manager-interference scenario - a 2-second delay (the old value) meant
+        // the correction, when it did fire, was as jarring as the problem it was
+        // fixing (see specs/double-teleport-to-lobby.md).
       }
     }
+
+    // Restart the prep phase for the next round - startPrepPhase() calls
+    // resyncPersistedPlayerSelections() internally, which is what actually re-adds each
+    // returning player's name back into the class holograms from their retained
+    // HuntPlayerData. Without this, kit/team/class stay valid (see
+    // specs/lobby-return-persistence.md) but the holograms stay empty until someone
+    // happens to re-click a class selection for unrelated reasons (see
+    // specs/hologram-names-lost-on-round-end.md).
+    startPrepPhase();
   }
 
   /**
@@ -1780,6 +1857,17 @@ public class HuntPrepPhaseManager {
   public void setDeathHandler(HuntDeathHandler deathHandler) {
     this.deathHandler = deathHandler;
     plugin.getLogger().info("Death handler set for HuntPrepPhaseManager");
+  }
+
+  /**
+   * Sets the spotlight listener so its idle-tracking state can be cleared on round/prep-phase end,
+   * so nothing carries over into the lobby (see
+   * specs/spotlight-countdown-persists-after-round-end.md).
+   *
+   * @param spotlightListener The spotlight listener instance
+   */
+  public void setSpotlightListener(HuntSpotlightListener spotlightListener) {
+    this.spotlightListener = spotlightListener;
   }
 
   /** Starts the heartbeat task that plays sounds to hiders when hunters are nearby. */
@@ -1867,6 +1955,19 @@ public class HuntPrepPhaseManager {
                                 + " blocks from hider "
                                 + hider.getName());
                   }
+                }
+              }
+
+              // "Recently hurt" exit check - see specs/recently-hurt-tension.md. Reuses the
+              // closestDistance just computed above instead of scanning hunters again.
+              if (hidersInHurtState.contains(playerId)) {
+                long lastHit = lastHitTimestamps.getOrDefault(playerId, 0L);
+                long timeoutMillis =
+                    config.getLong("hunt.hurt-tension.timeout-seconds", 10) * 1000L;
+                boolean timeoutElapsed = (System.currentTimeMillis() - lastHit) >= timeoutMillis;
+                boolean distanceCleared = closestDistance > mediumDistance;
+                if (timeoutElapsed && distanceCleared) {
+                  clearHurtTensionState(playerId);
                 }
               }
 
@@ -1961,13 +2062,153 @@ public class HuntPrepPhaseManager {
                               + hider.getName()
                               + " - no hunters in range");
 
-                  // Clear any remaining visual effects
-                  hider.sendActionBar(Component.empty());
+                  // Clear the tracked heartbeat warning - the ability status action bar will
+                  // stop including it on its next refresh.
+                  currentHeartbeatMessages.remove(hider.getUniqueId());
                 }
               }
             }
           }
         }.runTaskTimer(plugin, 0L, 20L); // Check every second for proximity changes
+  }
+
+  /**
+   * Records that a hider was hit by a hunter, entering (or refreshing) the "recently hurt"
+   * combat-tension state. See specs/recently-hurt-tension.md.
+   *
+   * @param hiderId The hider who was hit
+   */
+  public void recordHiderHit(UUID hiderId) {
+    lastHitTimestamps.put(hiderId, System.currentTimeMillis());
+
+    Player hider = Bukkit.getPlayer(hiderId);
+    if (hider == null || !hider.isOnline()) {
+      return;
+    }
+
+    // Ring on every hit, not just entry into the hurt state - grilled with Nirav 2026-07-17
+    // after the periodic 8-14s repeat felt too delayed during active combat.
+    playHurtBellBurst(hiderId, hider);
+
+    if (hidersInHurtState.contains(hiderId)) {
+      return; // Heartbeat and bell-repeat tasks already running.
+    }
+    hidersInHurtState.add(hiderId);
+    startHurtHeartbeatTask(hiderId, hider);
+    startHurtBellRepeatTask(hiderId);
+  }
+
+  /**
+   * Plays a burst of a few raid-bell rings in quick succession, immediately in response to a hit.
+   * Vanilla randomizes its own strike variation each play.
+   */
+  private void playHurtBellBurst(UUID hiderId, Player hider) {
+    float bellVolume = (float) config.getDouble("hunt.hurt-tension.bell-volume", 0.9);
+    int minCount = config.getInt("hunt.hurt-tension.bell-ring-min-count", 4);
+    int maxCount = config.getInt("hunt.hurt-tension.bell-ring-max-count", 6);
+    int minIntervalTicks = config.getInt("hunt.hurt-tension.bell-ring-interval-min-ticks", 8);
+    int maxIntervalTicks = config.getInt("hunt.hurt-tension.bell-ring-interval-max-ticks", 10);
+
+    int ringCount = minCount + (int) (Math.random() * Math.max(1, maxCount - minCount + 1));
+    long delayTicks = 0;
+    for (int i = 0; i < ringCount; i++) {
+      Bukkit.getScheduler()
+          .runTaskLater(
+              plugin,
+              () -> {
+                Player current = Bukkit.getPlayer(hiderId);
+                if (current != null && current.isOnline()) {
+                  current.playSound(current.getLocation(), Sound.BLOCK_BELL_USE, bellVolume, 1.0f);
+                }
+              },
+              delayTicks);
+      delayTicks +=
+          minIntervalTicks
+              + (int) (Math.random() * Math.max(1, maxIntervalTicks - minIntervalTicks + 1));
+    }
+  }
+
+  /**
+   * Starts a repeating bell-burst task for a hider in the hurt state, continuing for as long as the
+   * state itself is active - i.e. until the "got away" exit condition (no hit for the timeout, and
+   * the closest hunter beyond medium-distance) actually clears them. Requested by Nirav 2026-07-17:
+   * "keep ringing it until they get far away from the hunter," replacing the one-shot-per-hit-only
+   * behavior.
+   */
+  private void startHurtBellRepeatTask(UUID hiderId) {
+    int intervalSeconds = config.getInt("hunt.hurt-tension.bell-repeat-interval-seconds", 5);
+
+    BukkitRunnable task =
+        new BukkitRunnable() {
+          @Override
+          public void run() {
+            Player current = Bukkit.getPlayer(hiderId);
+            if (current == null || !current.isOnline() || !hidersInHurtState.contains(hiderId)) {
+              cancel();
+              return;
+            }
+            playHurtBellBurst(hiderId, current);
+          }
+        };
+    task.runTaskTimer(plugin, intervalSeconds * 20L, intervalSeconds * 20L);
+    hurtBellRepeatTasks.put(hiderId, task);
+  }
+
+  /** Starts the fixed-interval elevated heartbeat task for a hider in the hurt state. */
+  private void startHurtHeartbeatTask(UUID hiderId, Player hider) {
+    int intervalTicks = config.getInt("hunt.hurt-tension.heartbeat-interval-ticks", 18);
+    float heartbeatVolume = (float) config.getDouble("hunt.hurt-tension.heartbeat-volume", 0.65);
+    float heartbeatPitch = (float) config.getDouble("hunt.hurt-tension.heartbeat-pitch", 1.0);
+
+    BukkitRunnable task =
+        new BukkitRunnable() {
+          @Override
+          public void run() {
+            Player current = Bukkit.getPlayer(hiderId);
+            if (current == null || !current.isOnline() || !hidersInHurtState.contains(hiderId)) {
+              cancel();
+              return;
+            }
+            current.playSound(
+                current.getLocation(),
+                Sound.ENTITY_WARDEN_HEARTBEAT,
+                heartbeatVolume,
+                heartbeatPitch);
+          }
+        };
+    task.runTaskTimer(plugin, 0L, intervalTicks);
+    hurtHeartbeatTasks.put(hiderId, task);
+  }
+
+  /**
+   * Clears the "recently hurt" state for a single hider - cancels the elevated heartbeat task.
+   * Called when the "got away" exit condition is met, or when the hider leaves the hunt experience.
+   *
+   * @param hiderId The hider whose hurt-tension state should be cleared
+   */
+  public void clearHurtTensionState(UUID hiderId) {
+    hidersInHurtState.remove(hiderId);
+    lastHitTimestamps.remove(hiderId);
+
+    BukkitRunnable heartbeatTask = hurtHeartbeatTasks.remove(hiderId);
+    if (heartbeatTask != null) {
+      heartbeatTask.cancel();
+    }
+    BukkitRunnable bellRepeatTask = hurtBellRepeatTasks.remove(hiderId);
+    if (bellRepeatTask != null) {
+      bellRepeatTask.cancel();
+    }
+  }
+
+  /** Clears the "recently hurt" state for every tracked hider - used on prep/game end. */
+  private void clearAllHurtTensionState() {
+    for (UUID hiderId : new HashSet<>(hidersInHurtState)) {
+      clearHurtTensionState(hiderId);
+    }
+    hidersInHurtState.clear();
+    lastHitTimestamps.clear();
+    hurtHeartbeatTasks.clear();
+    hurtBellRepeatTasks.clear();
   }
 
   /** Calculates the heartbeat interval based on hunter proximity. */
@@ -2022,64 +2263,26 @@ public class HuntPrepPhaseManager {
                 + " at distance "
                 + String.format("%.1f", distance));
 
-    // Play sound with intensity based on distance
-    Sound heartbeatSound = Sound.ENTITY_PLAYER_HURT;
-    float adjustedVolume = volume;
-    float adjustedPitch = pitch;
+    // Play sound with intensity based on distance - see specs/proximity-tier-loops.md.
+    // Sound.ENTITY_WARDEN_HEARTBEAT replaces the old placeholder sounds; the existing
+    // distance-based interval (calculateHeartbeatInterval) already drives tempo, so tier
+    // differentiation here is volume/pitch plus a chance of a tier-appropriate flavor layer.
+    Sound heartbeatSound = Sound.ENTITY_WARDEN_HEARTBEAT;
+    float adjustedVolume;
+    float adjustedPitch;
 
     if (distance <= veryClose) {
-      // Very close: louder, lower pitch, more urgent
       adjustedVolume = volume * 1.2f;
-      adjustedPitch = pitch * 0.7f;
-      heartbeatSound = Sound.BLOCK_NOTE_BLOCK_BASS;
-      plugin
-          .getLogger()
-          .info(
-              "Very close heartbeat sound: "
-                  + heartbeatSound
-                  + " vol:"
-                  + adjustedVolume
-                  + " pitch:"
-                  + adjustedPitch);
+      adjustedPitch = pitch * 0.9f;
     } else if (distance <= close) {
-      // Close: normal intensity
       adjustedVolume = volume;
-      adjustedPitch = pitch * 0.8f;
-      plugin
-          .getLogger()
-          .info(
-              "Close heartbeat sound: "
-                  + heartbeatSound
-                  + " vol:"
-                  + adjustedVolume
-                  + " pitch:"
-                  + adjustedPitch);
-    } else if (distance <= medium) {
-      // Medium: slightly quieter
-      adjustedVolume = volume * 0.8f;
       adjustedPitch = pitch;
-      plugin
-          .getLogger()
-          .info(
-              "Medium heartbeat sound: "
-                  + heartbeatSound
-                  + " vol:"
-                  + adjustedVolume
-                  + " pitch:"
-                  + adjustedPitch);
+    } else if (distance <= medium) {
+      adjustedVolume = volume * 0.65f;
+      adjustedPitch = pitch;
     } else {
-      // Far: quieter, higher pitch
-      adjustedVolume = volume * 0.6f;
-      adjustedPitch = pitch * 1.2f;
-      plugin
-          .getLogger()
-          .info(
-              "Far heartbeat sound: "
-                  + heartbeatSound
-                  + " vol:"
-                  + adjustedVolume
-                  + " pitch:"
-                  + adjustedPitch);
+      adjustedVolume = volume * 0.4f;
+      adjustedPitch = pitch * 1.1f;
     }
 
     // Try multiple sound approaches to ensure it plays
@@ -2094,6 +2297,8 @@ public class HuntPrepPhaseManager {
           SoundCategory.PLAYERS,
           adjustedVolume,
           adjustedPitch);
+
+      playProximityFlavorLayer(hider, distance, veryClose, close, medium, adjustedVolume);
 
       plugin.getLogger().info("Successfully played heartbeat sounds for " + hider.getName());
     } catch (Exception e) {
@@ -2134,8 +2339,68 @@ public class HuntPrepPhaseManager {
         message = Component.text("Hunter Far", NamedTextColor.GRAY);
       }
       // CHECKSTYLE:ON: AvoidEscapedUnicodeCharacters
-      hider.sendActionBar(message);
+      currentHeartbeatMessages.put(hider.getUniqueId(), message);
     }
+  }
+
+  /**
+   * Probabilistically layers a tier-appropriate flavor sound on top of the main heartbeat, matching
+   * the layered ambience-bed-plus-stinger design from specs/proximity-tier-loops.md. Rolled once
+   * per heartbeat tick rather than on its own independent schedule, reusing the existing
+   * distance-driven interval as the retrigger clock.
+   */
+  private void playProximityFlavorLayer(
+      Player hider,
+      double distance,
+      double veryClose,
+      double close,
+      double medium,
+      float baseVolume) {
+    double roll = Math.random();
+    if (distance <= veryClose) {
+      if (roll < 0.35) {
+        hider.playSound(
+            hider.getLocation(), Sound.ENTITY_WARDEN_TENDRIL_CLICKS, baseVolume * 0.8f, 1.0f);
+      } else if (roll < 0.5) {
+        Sound[] nearbySounds = {
+          Sound.ENTITY_WARDEN_NEARBY_CLOSE,
+          Sound.ENTITY_WARDEN_NEARBY_CLOSER,
+          Sound.ENTITY_WARDEN_NEARBY_CLOSEST
+        };
+        Sound nearby = nearbySounds[(int) (Math.random() * nearbySounds.length)];
+        hider.playSound(hider.getLocation(), nearby, baseVolume * 0.9f, 1.0f);
+      }
+    } else if (distance <= close) {
+      if (roll < 0.3) {
+        hider.playSound(
+            hider.getLocation(), Sound.ENTITY_WARDEN_TENDRIL_CLICKS, baseVolume * 0.6f, 1.0f);
+      } else if (roll < 0.45) {
+        hider.playSound(
+            hider.getLocation(), Sound.BLOCK_SCULK_SENSOR_CLICKING, baseVolume * 0.6f, 1.0f);
+      } else if (roll < 0.5) {
+        hider.playSound(
+            hider.getLocation(), Sound.ENTITY_WARDEN_LISTENING_ANGRY, baseVolume * 0.5f, 1.0f);
+      }
+    } else if (distance <= medium) {
+      if (roll < 0.2) {
+        hider.playSound(
+            hider.getLocation(), Sound.BLOCK_SCULK_SENSOR_CLICKING, baseVolume * 0.5f, 1.0f);
+      } else if (roll < 0.28) {
+        hider.playSound(hider.getLocation(), Sound.ENTITY_WARDEN_SNIFF, baseVolume * 0.4f, 1.0f);
+      }
+    }
+    // Far tier: heartbeat only, no flavor layer - matches the sparse "barely a whisper" design.
+  }
+
+  /**
+   * Returns this player's current heartbeat proximity warning, or null if none. Used by
+   * HuntUtilityListener to merge it into the unified ability status action bar.
+   *
+   * @param playerId The player to check
+   * @return The current heartbeat warning component, or null
+   */
+  public Component getHeartbeatMessage(UUID playerId) {
+    return currentHeartbeatMessages.get(playerId);
   }
 
   private void removePlayersFromAllHolograms() {

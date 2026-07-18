@@ -6,8 +6,7 @@ public enum HuntMap {
   MOUNTAIN("Mountain", "Rocky mountain terrain with caves and cliffs"),
   MEDIEVAL("Medieval", "Ancient medieval town with cobblestone streets"),
   INDUSTRIAL("Industrial", "Industrial complex with machinery and warehouses"),
-  OFFICE("Office", "Modern office building with cubicles and meeting rooms"),
-  BACKROOMS("Backrooms", "Endless maze of yellow rooms with fluorescent lighting");
+  OFFICE("Office", "Modern office building with cubicles and meeting rooms");
 
   private final String displayName;
   private final String description;

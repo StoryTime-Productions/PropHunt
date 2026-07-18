@@ -232,8 +232,9 @@ public class HuntDisguiseManager {
         scaleAttr.setBaseValue(playerScale);
       }
 
-      player.playSound(player.getLocation(), Sound.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR, 1.0f, 0.5f);
-      player.playSound(player.getLocation(), Sound.BLOCK_BONE_BLOCK_BREAK, 1.0f, 0.8f);
+      // A single ominous ritual cue instead of the previous harsh door-break + bone-break
+      // crash combo (requested by Nirav 2026-07-17 as "a bit less harsh").
+      player.playSound(player.getLocation(), Sound.ENTITY_EVOKER_PREPARE_SUMMON, 1.0f, 1.0f);
 
       playerCooldowns.put(player.getUniqueId(), currentTime);
       playerDisguiseStands.put(player.getUniqueId(), locationId);

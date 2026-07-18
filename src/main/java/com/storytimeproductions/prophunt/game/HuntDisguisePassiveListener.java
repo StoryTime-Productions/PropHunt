@@ -1,7 +1,9 @@
 package com.storytimeproductions.prophunt.game;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -18,9 +20,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
-import org.bukkit.boss.BarColor;
-import org.bukkit.boss.BarStyle;
-import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Creeper;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
@@ -37,6 +36,12 @@ import org.bukkit.util.Vector;
 
 /** New implementation of passive abilities for hunter disguises with advanced mechanics. */
 public class HuntDisguisePassiveListener implements Listener {
+
+  // Delay (ticks) between Springtrap's aura triggering and the slow actually landing, giving
+  // hiders in range a brief window to move away (see specs/ambient-tracking-layer.md).
+  private static final long SPRINGTRAP_TELEGRAPH_DELAY_TICKS = 12L;
+  // Same idea for Cryptid's blink - a warning cue before it actually teleports.
+  private static final long CRYPTID_TELEGRAPH_DELAY_TICKS = 12L;
 
   private final JavaPlugin plugin;
   private final HuntDisguiseManager disguiseManager;
@@ -59,8 +64,9 @@ public class HuntDisguisePassiveListener implements Listener {
       slendermanParanoiaCooldowns; // Track when hiders can be affected by paranoia
   // again
 
-  // Permanent hotbar tracking for idle-based abilities
-  private final Map<UUID, BossBar> permanentIdleHotbars; // Track permanent idle progress bars
+  // Wall-clock end time (millis) for an active idle ability's duration, so the unified action
+  // bar can compute remaining time without needing per-tick sync with the countdown task.
+  private final Map<UUID, Long> activeAbilityEndTimes;
 
   // Hider title tracking for "RUN" warnings
   private final Map<UUID, BukkitTask> hiderRunTitleTasks; // Track "RUN" title countdown tasks
@@ -105,7 +111,7 @@ public class HuntDisguisePassiveListener implements Listener {
     this.herobrineGlowTasks = new HashMap<>();
     this.slendermanParanoiaBarTasks = new HashMap<>();
     this.slendermanParanoiaCooldowns = new HashMap<>();
-    this.permanentIdleHotbars = new HashMap<>();
+    this.activeAbilityEndTimes = new HashMap<>();
     this.hiderRunTitleTasks = new HashMap<>();
     this.hiderSeenCooldowns = new HashMap<>();
     this.abilityCooldowns = new HashMap<>();
@@ -149,11 +155,11 @@ public class HuntDisguisePassiveListener implements Listener {
             .getLogger()
             .info("Removing passive effects from " + player.getName() + " in world " + worldName);
         removePassiveEffects(player);
-        removePermanentIdleHotbar(player);
         lastPlayerLocations.remove(playerId);
         playerStillTimes.remove(playerId);
         abilityCooldowns.remove(playerId);
         activeAbilities.remove(playerId);
+        activeAbilityEndTimes.remove(playerId);
         chargedAbilities.remove(playerId);
         cancelPassiveTask(playerId);
       }
@@ -252,35 +258,44 @@ public class HuntDisguisePassiveListener implements Listener {
               return;
             }
 
-            boolean affectedAny = false;
+            List<Player> targetsInRange = new ArrayList<>();
             for (Player nearbyPlayer : springtrap.getWorld().getPlayers()) {
               if (!nearbyPlayer.equals(springtrap) && isPlayerHider(nearbyPlayer)) {
                 double distance = nearbyPlayer.getLocation().distance(springtrap.getLocation());
                 if (distance <= 5.0) {
-                  nearbyPlayer.addPotionEffect(
-                      new PotionEffect(PotionEffectType.SLOWNESS, 60, 0)); // 3
-                  // seconds
-
-                  // Play hunter screech sound when effect is applied to hider
-                  disguiseManager.playCharacterScreech(springtrap);
-
-                  affectedAny = true;
+                  targetsInRange.add(nearbyPlayer);
                 }
               }
             }
-            if (affectedAny) {
-              // Show radius particle effect when ability activates
+            if (!targetsInRange.isEmpty()) {
+              // Telegraph: warning sound/particle before the slow actually lands, giving hiders
+              // in range a brief window to move out before it applies (see
+              // specs/ambient-tracking-layer.md, "telegraphed windups").
               showRadiusParticleEffect(springtrap, 5.0);
+              springtrap
+                  .getWorld()
+                  .playSound(springtrap.getLocation(), Sound.BLOCK_CONDUIT_ACTIVATE, 1.0f, 0.8f);
 
-              // Use the permanent idle hotbar for ability duration display
-              showAbilityUseDuration(springtrap, HunterDisguiseType.SPRINGTRAP, 60);
-              triggerAbilityUseEffect(springtrap, HunterDisguiseType.SPRINGTRAP);
-
-              // Cancel this task since the ability duration is now being managed
               springtrapAuraTasks.remove(springtrapId);
-              // Note: activeAbilities flag will be cleared by showAbilityUseDuration when the
-              // ability ends
               cancel();
+
+              new BukkitRunnable() {
+                @Override
+                public void run() {
+                  for (Player target : targetsInRange) {
+                    if (target.isOnline()
+                        && isPlayerHider(target)
+                        && target.getLocation().distance(springtrap.getLocation()) <= 5.0) {
+                      target.addPotionEffect(
+                          new PotionEffect(PotionEffectType.SLOWNESS, 60, 0)); // 3 seconds
+                      disguiseManager.playCharacterScreech(springtrap);
+                    }
+                  }
+                  // activeAbilities flag will be cleared by showAbilityUseDuration when the
+                  // ability ends
+                  showAbilityUseDuration(springtrap, HunterDisguiseType.SPRINGTRAP, 60);
+                }
+              }.runTaskLater(plugin, SPRINGTRAP_TELEGRAPH_DELAY_TICKS);
             }
           }
         }.runTaskTimer(plugin, 0L, 40L); // Every 2 seconds
@@ -345,7 +360,6 @@ public class HuntDisguisePassiveListener implements Listener {
 
               disguiseManager.playCharacterScreech(herobrine);
               showAbilityUseDuration(herobrine, HunterDisguiseType.HEROBRINE, 100);
-              triggerAbilityUseEffect(herobrine, HunterDisguiseType.HEROBRINE);
 
               herobrineGlowTasks.remove(herobrineId);
               cancel();
@@ -448,63 +462,30 @@ public class HuntDisguisePassiveListener implements Listener {
   }
 
   /**
-   * Fills Slenderman's boss bar when a paranoia effect is successfully applied to a hider and then
-   * smoothly decreases it over the paranoia effect duration.
+   * Marks Slenderman's paranoia effect as active for the unified ability status action bar when a
+   * paranoia effect is successfully applied to a hider, clearing itself after the effect duration.
    */
   private void fillSlendermanParanoiaBar(Player slenderman) {
     UUID slendermanId = slenderman.getUniqueId();
-    BossBar hotbar = permanentIdleHotbars.get(slendermanId);
 
-    if (hotbar != null) {
-      // Cancel any existing paranoia bar task to prevent overlap
-      BukkitTask existingTask = slendermanParanoiaBarTasks.get(slendermanId);
-      if (existingTask != null && !existingTask.isCancelled()) {
-        existingTask.cancel();
-      }
-
-      // Fill the bar completely and set static title to prevent flickering
-      hotbar.setProgress(1.0);
-      hotbar.setColor(BarColor.PURPLE);
-      hotbar.setTitle("Paranoia Aura: Active");
-
-      // Start smooth countdown over 5 seconds (100 ticks) to match paranoia effect
-      // duration
-      final int totalTicks = 100; // 5 seconds in ticks
-      final int updateInterval = 2; // Update every 2 ticks for smooth animation
-
-      BukkitTask countdownTask =
-          new BukkitRunnable() {
-            private int ticksElapsed = 0;
-
-            @Override
-            public void run() {
-              if (hotbar == null || !permanentIdleHotbars.containsKey(slendermanId)) {
-                slendermanParanoiaBarTasks.remove(slendermanId);
-                this.cancel();
-                return;
-              }
-
-              ticksElapsed += updateInterval;
-
-              // Calculate progress (starts at 1.0, decreases to 0.0)
-              double progress = Math.max(0.0, 1.0 - ((double) ticksElapsed / totalTicks));
-              hotbar.setProgress(progress);
-
-              // Only change title when effect is completely finished
-              if (progress <= 0.0) {
-                // Effect finished - reset to idle state
-                hotbar.setProgress(0.0);
-                hotbar.setColor(BarColor.BLUE);
-                hotbar.setTitle("Paranoia Aura");
-                slendermanParanoiaBarTasks.remove(slendermanId);
-                this.cancel();
-              }
-            }
-          }.runTaskTimer(plugin, updateInterval, updateInterval);
-
-      // Store the task for potential cancellation
-      slendermanParanoiaBarTasks.put(slendermanId, countdownTask);
+    // Cancel any existing paranoia bar task to prevent overlap
+    BukkitTask existingTask = slendermanParanoiaBarTasks.get(slendermanId);
+    if (existingTask != null && !existingTask.isCancelled()) {
+      existingTask.cancel();
     }
+
+    // Match the paranoia effect duration (5 seconds / 100 ticks)
+    final int totalTicks = 100;
+
+    BukkitTask endTask =
+        new BukkitRunnable() {
+          @Override
+          public void run() {
+            slendermanParanoiaBarTasks.remove(slendermanId);
+          }
+        }.runTaskLater(plugin, totalTicks);
+
+    slendermanParanoiaBarTasks.put(slendermanId, endTask);
   }
 
   /** Cryptid - Shadow Phase: Silent movement and conditional teleport. */
@@ -521,7 +502,7 @@ public class HuntDisguisePassiveListener implements Listener {
     // Check for nearby hiders and play screech if any are found within 5 blocks
     playScreechIfHidersNearby(cryptid, 5.0);
 
-    // Long-range teleport when ability is activated
+    // Lock in the target now, at cast time - long-range teleport when ability is activated
     Location currentLoc = cryptid.getLocation();
     Vector direction =
         currentLoc.getDirection().multiply(7); // Increased from 3 to 7 blocks forward
@@ -542,11 +523,23 @@ public class HuntDisguisePassiveListener implements Listener {
       }
     }
 
-    cryptid.teleport(teleportLoc);
-    cryptid.playSound(cryptid.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.0f);
-    // Use the permanent idle hotbar for ability duration display
+    // Telegraph: warning cue at the departure point before actually blinking away, giving
+    // nearby hiders a moment to notice (see specs/ambient-tracking-layer.md).
+    cryptid.getWorld().playSound(currentLoc, Sound.BLOCK_CONDUIT_ACTIVATE, 0.8f, 1.4f);
+
+    Location finalTeleportLoc = teleportLoc;
+    new BukkitRunnable() {
+      @Override
+      public void run() {
+        if (!cryptid.isOnline()) {
+          return;
+        }
+        cryptid.teleport(finalTeleportLoc);
+        cryptid.playSound(cryptid.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 0.5f, 1.0f);
+      }
+    }.runTaskLater(plugin, CRYPTID_TELEGRAPH_DELAY_TICKS);
+
     showAbilityUseDuration(cryptid, HunterDisguiseType.CRYPTID, 100);
-    triggerAbilityUseEffect(cryptid, HunterDisguiseType.CRYPTID);
   }
 
   /** Scarecrow - Field of Fear: Create clone that detects nearby hiders. */
@@ -773,9 +766,6 @@ public class HuntDisguisePassiveListener implements Listener {
                 System.out.println("[HuntPassive] Failed to teleport clone: " + e.getMessage());
               }
             }
-          } else {
-            System.out.println(
-                "[HuntPassive] No valid hiders found within " + detectionRange + " blocks");
           }
         }
 
@@ -799,9 +789,7 @@ public class HuntDisguisePassiveListener implements Listener {
       }
     }.runTaskTimer(plugin, 0L, 1L);
 
-    // Use the permanent idle hotbar for ability duration display
     showAbilityUseDuration(scarecrow, HunterDisguiseType.SCARECROW, 200);
-    triggerAbilityUseEffect(scarecrow, HunterDisguiseType.SCARECROW);
   }
 
   /** Jigsaw - Puzzle Field: Vanish for 5 seconds. */
@@ -822,9 +810,7 @@ public class HuntDisguisePassiveListener implements Listener {
     jigsaw.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 100, 0)); // 5 seconds
     jigsaw.playSound(jigsaw.getLocation(), Sound.BLOCK_BEACON_DEACTIVATE, 1.0f, 0.1f);
 
-    // Use the permanent idle hotbar for ability duration display
     showAbilityUseDuration(jigsaw, HunterDisguiseType.JIGSAW, 100);
-    triggerAbilityUseEffect(jigsaw, HunterDisguiseType.JIGSAW);
 
     // Schedule removal of vanish state
     Bukkit.getScheduler()
@@ -869,161 +855,38 @@ public class HuntDisguisePassiveListener implements Listener {
   private void showAbilityUseDuration(
       Player player, HunterDisguiseType disguiseType, int durationTicks) {
     UUID playerId = player.getUniqueId();
-    BossBar hotbar = permanentIdleHotbars.get(playerId);
 
-    // Mark player as having an active ability
+    // Mark player as having an active ability, and record when it ends so the unified ability
+    // status action bar can compute remaining time on demand.
     activeAbilities.put(playerId, true);
+    activeAbilityEndTimes.put(playerId, System.currentTimeMillis() + (durationTicks * 50L));
 
-    if (hotbar != null) {
-      // Change title to show ability is active
-      String abilityName = getIdleAbilityName(disguiseType);
-      hotbar.setTitle(abilityName + " Active");
-      hotbar.setColor(BarColor.PURPLE);
-      hotbar.setProgress(1.0); // Start at full
-
-      // Create countdown task for ability duration
-      new BukkitRunnable() {
-        int remainingTicks = durationTicks;
-
-        @Override
-        public void run() {
-          // Get fresh reference to the hotbar each tick to ensure we have the current one
-          BossBar currentHotbar = permanentIdleHotbars.get(playerId);
-
-          if (remainingTicks <= 0 || !player.isOnline() || currentHotbar == null) {
-            // Ability finished - immediately reset to charge mode (KEEP BAR VISIBLE)
-            if (currentHotbar != null && permanentIdleHotbars.containsKey(playerId)) {
-              currentHotbar.setTitle(abilityName + " Charge");
-              currentHotbar.setColor(BarColor.BLUE);
-              currentHotbar.setProgress(0.0); // Reset to empty for next charge
-              // Clear active ability flag and charged ability flag
-              activeAbilities.remove(playerId);
-              chargedAbilities.remove(playerId);
-            }
-            cancel();
-            return;
-          }
-
-          // Update progress bar during ability use - use fresh hotbar reference
-          double progress = (double) remainingTicks / durationTicks;
-          currentHotbar.setProgress(Math.max(0.0, progress));
-          remainingTicks--;
-        }
-      }.runTaskTimer(plugin, 0L, 1L);
-    }
+    new BukkitRunnable() {
+      @Override
+      public void run() {
+        // Ability finished - clear active/charged flags so the next idle-charge cycle can start
+        activeAbilities.remove(playerId);
+        chargedAbilities.remove(playerId);
+      }
+    }.runTaskLater(plugin, durationTicks);
   }
 
   /**
-   * Ensures a hunter always has a boss bar for their current disguise, creating or updating as
-   * needed.
+   * Updates idle-charge state for a disguise's passive ability. Slenderman doesn't charge from idle
+   * time (see {@link #fillSlendermanParanoiaBar}), so this is a no-op for it.
    */
-  private void ensurePermanentIdleHotbar(Player player, HunterDisguiseType disguiseType) {
-    UUID playerId = player.getUniqueId();
-    BossBar existingHotbar = permanentIdleHotbars.get(playerId);
-    String expectedAbilityName = getIdleAbilityName(disguiseType);
-
-    // Check if we need to create a new bar or update the existing one for a
-    // different disguise
-    if (existingHotbar == null) {
-      // Create new boss bar
-      String title = expectedAbilityName + " Charge";
-      BossBar hotbar = Bukkit.createBossBar(title, BarColor.BLUE, BarStyle.SEGMENTED_10);
-      hotbar.addPlayer(player);
-      hotbar.setProgress(0.0);
-      permanentIdleHotbars.put(playerId, hotbar);
-    } else {
-      // Update existing bar for current disguise if it's different
-      String currentTitle = existingHotbar.getTitle();
-      if (!currentTitle.contains(expectedAbilityName)) {
-        // Player changed disguise - update the bar
-        existingHotbar.setTitle(expectedAbilityName + " Charge");
-        existingHotbar.setColor(BarColor.BLUE);
-        existingHotbar.setProgress(0.0);
-      }
-    }
-  }
-
-  /** Updates idle progress on the boss bar without removing it. */
   private void updateIdleProgress(
       Player player, HunterDisguiseType disguiseType, long currentIdleTime) {
-    UUID playerId = player.getUniqueId();
-    BossBar hotbar = permanentIdleHotbars.get(playerId);
-
-    if (hotbar != null) {
-      // Slenderman's bar works differently - it doesn't charge based on idle time
-      if (disguiseType == HunterDisguiseType.SLENDERMAN) {
-        // Only update title and color if no ability is active AND no paranoia effect is
-        // running
-        BukkitTask activeParanoiaTask = slendermanParanoiaBarTasks.get(playerId);
-        boolean paranoiaEffectActive =
-            activeParanoiaTask != null && !activeParanoiaTask.isCancelled();
-
-        if (!activeAbilities.getOrDefault(playerId, false) && !paranoiaEffectActive) {
-          hotbar.setProgress(0.0); // Always empty unless filled by paranoia effect
-          hotbar.setColor(BarColor.BLUE);
-          hotbar.setTitle("Paranoia Aura");
-        }
-        return;
-      }
-
-      // For other hunters, use the normal idle-based charging system
-      long requiredIdleTime = getRequiredIdleTime(disguiseType);
-      double progress = Math.min(1.0, (double) currentIdleTime / requiredIdleTime);
-      String abilityName = getIdleAbilityName(disguiseType);
-
-      // Mark ability as charged when it reaches 100%
-      if (progress >= 1.0 && !chargedAbilities.getOrDefault(playerId, false)) {
-        chargedAbilities.put(playerId, true);
-      }
-
-      // Update progress
-      hotbar.setProgress(progress);
-
-      // Change color and title based on progress, but only if no ability is active
-      if (!activeAbilities.getOrDefault(playerId, false)) {
-        if (progress >= 1.0) {
-          hotbar.setColor(BarColor.GREEN); // Ready to use
-          hotbar.setTitle(abilityName + " Ready! (Shift to use)");
-        } else if (progress >= 0.5) {
-          hotbar.setColor(BarColor.YELLOW); // Charging
-          hotbar.setTitle(abilityName + " Charging...");
-        } else {
-          hotbar.setColor(BarColor.BLUE); // Building up
-          hotbar.setTitle(abilityName + " Charge");
-        }
-      }
+    if (disguiseType == HunterDisguiseType.SLENDERMAN) {
+      return;
     }
-  }
 
-  /** Triggers ability use effect on the permanent hotbar (decreases and resets). */
-  private void triggerAbilityUseEffect(Player player, HunterDisguiseType disguiseType) {
     UUID playerId = player.getUniqueId();
-    BossBar hotbar = permanentIdleHotbars.get(playerId);
+    long requiredIdleTime = getRequiredIdleTime(disguiseType);
+    double progress = Math.min(1.0, (double) currentIdleTime / requiredIdleTime);
 
-    if (hotbar != null) {
-      // Flash red briefly to indicate ability use
-      hotbar.setColor(BarColor.RED);
-      hotbar.setProgress(0.0);
-
-      // Reset to blue after a brief moment
-      Bukkit.getScheduler()
-          .runTaskLater(
-              plugin,
-              () -> {
-                if (hotbar != null && permanentIdleHotbars.containsKey(playerId)) {
-                  hotbar.setColor(BarColor.BLUE);
-                }
-              },
-              10L); // 0.5 seconds
-    }
-  }
-
-  /** Removes permanent idle hotbar for a player. */
-  private void removePermanentIdleHotbar(Player player) {
-    UUID playerId = player.getUniqueId();
-    BossBar hotbar = permanentIdleHotbars.remove(playerId);
-    if (hotbar != null) {
-      hotbar.removeAll();
+    if (progress >= 1.0 && !chargedAbilities.getOrDefault(playerId, false)) {
+      chargedAbilities.put(playerId, true);
     }
   }
 
@@ -1123,11 +986,7 @@ public class HuntDisguisePassiveListener implements Listener {
       player.clearTitle();
     }
 
-    // Remove permanent idle hotbar
-    BossBar permanentHotbar = permanentIdleHotbars.remove(playerId);
-    if (permanentHotbar != null) {
-      permanentHotbar.removeAll();
-    }
+    activeAbilityEndTimes.remove(playerId);
 
     // Remove scarecrow clone
     Entity clone = scarecrowClones.remove(playerId);
@@ -1298,8 +1157,8 @@ public class HuntDisguisePassiveListener implements Listener {
                   playerStillTimes.remove(playerId);
                   abilityCooldowns.remove(playerId);
                   activeAbilities.remove(playerId);
+                  activeAbilityEndTimes.remove(playerId);
                   chargedAbilities.remove(playerId);
-                  removePermanentIdleHotbar(player); // Only remove when no longer a hunter
                 }
               }
             }
@@ -1319,11 +1178,7 @@ public class HuntDisguisePassiveListener implements Listener {
     // Apply armor hiding for all disguised hunters
     applyArmorHiding(player);
 
-    // Always ensure the hunter has a boss bar for their current disguise
     HunterDisguiseType currentDisguiseType = getPlayerDisguiseType(player);
-    if (currentDisguiseType != null && hasIdleTimeAbility(currentDisguiseType)) {
-      ensurePermanentIdleHotbar(player, currentDisguiseType);
-    }
 
     // Check if player has moved significantly (more than 0.1 blocks)
     boolean hasMovedSignificantly =
@@ -1337,7 +1192,6 @@ public class HuntDisguisePassiveListener implements Listener {
       if (!chargedAbilities.getOrDefault(playerId, false)) {
         playerStillTimes.remove(playerId);
       }
-      // DO NOT remove the boss bar when moving - keep it visible always
 
       // Handle movement-based abilities
       if (currentDisguiseType == HunterDisguiseType.CRYPTID) {
@@ -1357,12 +1211,6 @@ public class HuntDisguisePassiveListener implements Listener {
 
         if (currentDisguiseType != null && hasIdleTimeAbility(currentDisguiseType)) {
           updateIdleProgress(player, currentDisguiseType, currentIdleTime);
-        }
-      } else if (chargedAbilities.getOrDefault(playerId, false)
-          && !activeAbilities.getOrDefault(playerId, false)) {
-        // If ability is charged but player is moving, maintain the "Ready" state
-        if (currentDisguiseType != null && hasIdleTimeAbility(currentDisguiseType)) {
-          maintainChargedState(player, currentDisguiseType);
         }
       }
     }
@@ -1415,17 +1263,12 @@ public class HuntDisguisePassiveListener implements Listener {
     slendermanParanoiaCooldowns.clear();
     jigsawVanishTimes.clear();
 
-    // Remove all permanent hotbars
-    for (BossBar hotbar : permanentIdleHotbars.values()) {
-      hotbar.removeAll();
-    }
-    permanentIdleHotbars.clear();
-
     // Clear ability cooldowns
     abilityCooldowns.clear();
 
     // Clear active abilities
     activeAbilities.clear();
+    activeAbilityEndTimes.clear();
 
     // Clear charged abilities
     chargedAbilities.clear();
@@ -1679,16 +1522,49 @@ public class HuntDisguisePassiveListener implements Listener {
     }
   }
 
-  /** Maintains the charged state visual for abilities that are ready to use. */
-  private void maintainChargedState(Player player, HunterDisguiseType disguiseType) {
-    UUID playerId = player.getUniqueId();
-    BossBar hotbar = permanentIdleHotbars.get(playerId);
-
-    if (hotbar != null && !activeAbilities.getOrDefault(playerId, false)) {
-      String abilityName = getIdleAbilityName(disguiseType);
-      hotbar.setProgress(1.0); // Keep at full charge
-      hotbar.setColor(BarColor.GREEN); // Ready to use
-      hotbar.setTitle(abilityName + " Ready! (Shift to use)");
+  /**
+   * Returns this hunter's disguise-specific passive ability status for the unified ability status
+   * action bar, or empty if they aren't a disguised hunter with an idle-time ability.
+   *
+   * @param player The player to check
+   * @return The disguise ability's status, or empty
+   */
+  public java.util.Optional<AbilityStatus> getDisguiseAbilityStatus(Player player) {
+    if (!isDisguisedHunter(player)) {
+      return java.util.Optional.empty();
     }
+    HunterDisguiseType disguiseType = getPlayerDisguiseType(player);
+    if (disguiseType == null || !hasIdleTimeAbility(disguiseType)) {
+      return java.util.Optional.empty();
+    }
+
+    UUID playerId = player.getUniqueId();
+    String label = getIdleAbilityName(disguiseType).toUpperCase(java.util.Locale.ROOT);
+
+    if (disguiseType == HunterDisguiseType.SLENDERMAN) {
+      BukkitTask paranoiaTask = slendermanParanoiaBarTasks.get(playerId);
+      boolean paranoiaActive = paranoiaTask != null && !paranoiaTask.isCancelled();
+      return java.util.Optional.of(new AbilityStatus(label, false, 0, 0, paranoiaActive));
+    }
+
+    int requiredIdleTime = (int) getRequiredIdleTime(disguiseType);
+
+    if (activeAbilities.getOrDefault(playerId, false)) {
+      Long endTime = activeAbilityEndTimes.get(playerId);
+      long remaining =
+          endTime == null ? 0 : Math.max(0, (endTime - System.currentTimeMillis()) / 1000);
+      return java.util.Optional.of(
+          new AbilityStatus(label, true, remaining, requiredIdleTime, true));
+    }
+
+    if (chargedAbilities.getOrDefault(playerId, false)) {
+      return java.util.Optional.of(new AbilityStatus(label, false, 0, requiredIdleTime, true));
+    }
+
+    Long stillStart = playerStillTimes.get(playerId);
+    long currentIdleTime =
+        stillStart == null ? 0 : (System.currentTimeMillis() - stillStart) / 1000;
+    long remaining = Math.max(0, requiredIdleTime - currentIdleTime);
+    return java.util.Optional.of(new AbilityStatus(label, true, remaining, requiredIdleTime, true));
   }
 }

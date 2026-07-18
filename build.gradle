@@ -90,6 +90,10 @@ test {
 }
 
 processResources {
+    // version is a fresh timestamp on every invocation, but Gradle has no way to know that
+    // unless it's declared as an input - without this, processResources gets marked UP-TO-DATE
+    // and the packaged plugin.yml silently keeps reporting a stale version.
+    inputs.property('version', version)
     filesMatching("**/plugin.yml") {
         expand(NAME: rootProject.name, VERSION: version, PACKAGE: project.group.toString())
     }

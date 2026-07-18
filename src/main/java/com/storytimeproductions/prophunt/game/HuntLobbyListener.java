@@ -3,6 +3,7 @@ package com.storytimeproductions.prophunt.game;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -206,16 +207,19 @@ public class HuntLobbyListener implements Listener {
     switch (slot) {
       case 2 -> {
         data.setSelectedHiderClass(HiderClass.TRICKSTER);
+        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
         sendHiderClassInfo(player, HiderClass.TRICKSTER);
         lobbyManager.openMainMenu(player);
       }
       case 5 -> {
         data.setSelectedHiderClass(HiderClass.PHASER);
+        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
         sendHiderClassInfo(player, HiderClass.PHASER);
         lobbyManager.openMainMenu(player);
       }
       case 8 -> {
         data.setSelectedHiderClass(HiderClass.CLOAKER);
+        player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1.0f, 1.0f);
         sendHiderClassInfo(player, HiderClass.CLOAKER);
         lobbyManager.openMainMenu(player);
       }

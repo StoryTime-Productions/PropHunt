@@ -26,7 +26,7 @@ Contributions, ideas, or feature requests are always welcome!
 - **Hider classes**: Trickster, Phaser, Cloaker — each with a unique utility ability, plus a shared block-disguise ability.
 - **Imposter Hunt**: an alternate gamemode with murderer/sheriff/innocent roles, a coin economy, and zapper weapons instead of team-based hide-and-seek.
 - **NextBot Hunt**: an alternate gamemode where every player is a hider.
-- **Maps**: Warehouse, Factory, Mansion, and Backrooms, each with configurable hunter/hider spawn points, voted on during the prep phase.
+- **Maps**: Warehouse, Factory, and Mansion, each with configurable hunter/hider spawn points, voted on during the prep phase.
 - **Disguises**: block and NPC disguises via LibsDisguises, including armor-stand NPC decoys placed around the lobby.
 
 ## Commands

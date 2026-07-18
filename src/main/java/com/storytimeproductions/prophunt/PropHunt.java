@@ -3,6 +3,7 @@ package com.storytimeproductions.prophunt;
 import com.storytimeproductions.prophunt.commands.DisguiseCommand;
 import com.storytimeproductions.prophunt.commands.HuntCommand;
 import com.storytimeproductions.prophunt.game.HiderUtilityListener;
+import com.storytimeproductions.prophunt.game.HuntAmbientTrackingListener;
 import com.storytimeproductions.prophunt.game.HuntCleanupListener;
 import com.storytimeproductions.prophunt.game.HuntDisguiseListener;
 import com.storytimeproductions.prophunt.game.HuntDisguiseManager;
@@ -18,6 +19,7 @@ import com.storytimeproductions.prophunt.game.HuntLobbyListener;
 import com.storytimeproductions.prophunt.game.HuntLobbyManager;
 import com.storytimeproductions.prophunt.game.HuntPlayerJoinListener;
 import com.storytimeproductions.prophunt.game.HuntPrepPhaseManager;
+import com.storytimeproductions.prophunt.game.HuntSpotlightListener;
 import com.storytimeproductions.prophunt.game.HuntUtilityListener;
 import com.storytimeproductions.prophunt.game.ImposterCoinManager;
 import com.storytimeproductions.prophunt.game.ImposterGameManager;
@@ -105,7 +107,9 @@ public class PropHunt extends JavaPlugin {
         .registerEvents(new HuntLobbyListener(huntLobbyManager, huntGameModeManager), this);
     getServer()
         .getPluginManager()
-        .registerEvents(new HuntPlayerJoinListener(huntDisguiseManager, this), this);
+        .registerEvents(
+            new HuntPlayerJoinListener(huntDisguiseManager, huntKitManager, huntLobbyManager, this),
+            this);
     getServer()
         .getPluginManager()
         .registerEvents(new HuntDisguiseListener(huntDisguiseManager, huntHologramManager), this);
@@ -122,6 +126,19 @@ public class PropHunt extends JavaPlugin {
     getServer().getPluginManager().registerEvents(hiderUtilityListener, this);
     huntDisguisePassiveListener.setHiderUtilityListener(hiderUtilityListener);
     huntUtilityListener.setHiderUtilityListener(hiderUtilityListener);
+    huntUtilityListener.setHuntDisguisePassiveListener(huntDisguisePassiveListener);
+    huntUtilityListener.setPrepPhaseManager(huntPrepPhaseManager);
+
+    // Passive ambient tracking (scratch marks / red stain equivalents) - not a Listener, just
+    // needs constructing to start its own periodic task. See specs/ambient-tracking-layer.md.
+    new HuntAmbientTrackingListener(this, huntConfig, huntLobbyManager);
+
+    // Idle-triggered spotlight reveal - not a Listener, just needs constructing to start its own
+    // periodic tasks. See specs/idle-spotlight.md.
+    HuntSpotlightListener huntSpotlightListener =
+        new HuntSpotlightListener(this, huntConfig, huntPrepPhaseManager, hiderUtilityListener);
+    huntUtilityListener.setSpotlightListener(huntSpotlightListener);
+    huntPrepPhaseManager.setSpotlightListener(huntSpotlightListener);
 
     getServer()
         .getPluginManager()
@@ -135,6 +152,7 @@ public class PropHunt extends JavaPlugin {
                 huntDisguisePassiveListener,
                 hiderUtilityListener,
                 huntPrepPhaseManager,
+                huntSpotlightListener,
                 "hunt"),
             this);
 
@@ -169,7 +187,7 @@ public class PropHunt extends JavaPlugin {
                 huntHologramManager, huntCommand, huntPrepPhaseManager, huntGameModeManager),
             this);
 
-    initHuntDeathHandler();
+    initHuntDeathHandler(hiderUtilityListener);
 
     getLogger().info("PropHunt enabled!");
   }
@@ -205,7 +223,7 @@ public class PropHunt extends JavaPlugin {
     }
   }
 
-  private void initHuntDeathHandler() {
+  private void initHuntDeathHandler(HiderUtilityListener hiderUtilityListener) {
     try {
       File huntConfigFile = new File(getDataFolder(), "hunt.yml");
       if (!huntConfigFile.exists()) {
@@ -225,6 +243,8 @@ public class PropHunt extends JavaPlugin {
       if (huntDisguiseManager != null) {
         deathHandler.setDisguiseManager(huntDisguiseManager);
       }
+
+      deathHandler.setHiderUtilityListener(hiderUtilityListener);
     } catch (Exception e) {
       getLogger().severe("Failed to initialize HuntDeathHandler: " + e.getMessage());
       e.printStackTrace();

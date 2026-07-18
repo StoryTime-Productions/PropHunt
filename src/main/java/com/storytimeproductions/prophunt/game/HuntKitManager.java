@@ -148,13 +148,18 @@ public class HuntKitManager {
     clearPlayerInventory(player);
 
     // Give all three items with custom names: melee, ranged, utility
-    player
-        .getInventory()
-        .addItem(
-            createNamedItem(
-                hunterClass.getMeleeWeapon(),
-                getMeleeWeaponName(hunterClass),
-                getMeleeWeaponLore(hunterClass)));
+    ItemStack meleeItem =
+        createNamedItem(
+            hunterClass.getMeleeWeapon(),
+            getMeleeWeaponName(hunterClass),
+            getMeleeWeaponLore(hunterClass));
+    if (meleeItem.getType() == org.bukkit.Material.IRON_HOE) {
+      // Hoes deal only 1 base attack damage in vanilla - Saboteur's melee weapon would otherwise
+      // be nearly useless in a fight, so buff it with Sharpness to bring it in line with the
+      // other hunter classes' melee weapons.
+      meleeItem.addUnsafeEnchantment(org.bukkit.enchantments.Enchantment.SHARPNESS, 3);
+    }
+    player.getInventory().addItem(meleeItem);
 
     ItemStack rangedItem =
         createNamedItem(
@@ -374,7 +379,7 @@ public class HuntKitManager {
   private String getUtilityItemName(HunterClass hunterClass) {
     switch (hunterClass) {
       case BRUTE:
-        return "<red><bold>Resilience Totem</bold></red>";
+        return "<red><bold>Shockwave Totem</bold></red>";
       case NIMBLE:
         return "<green><bold>Dash</bold></green>";
       case SABOTEUR:
@@ -389,9 +394,10 @@ public class HuntKitManager {
     switch (hunterClass) {
       case BRUTE:
         return new String[] {
-          "<gray>Right-click to activate</gray>",
-          "<gray>temporary resistance and</gray>",
-          "<gray>regeneration effects.</gray>"
+          "<gray>Right-click to smash the</gray>",
+          "<gray>ground, knocking back and</gray>",
+          "<gray>revealing disguised hiders</gray>",
+          "<gray>caught in the blast.</gray>"
         };
       case NIMBLE:
         return new String[] {
@@ -410,7 +416,7 @@ public class HuntKitManager {
   private String getHiderUtilityItemName(HiderClass hiderClass) {
     switch (hiderClass) {
       case TRICKSTER:
-        return "<dark_purple><bold>Tripwire Trap</bold></dark_purple>";
+        return "<dark_purple><bold>Stun Hook</bold></dark_purple>";
       case PHASER:
         return "<aqua><bold>Phase Pearl</bold></aqua>";
       case CLOAKER:
@@ -425,10 +431,10 @@ public class HuntKitManager {
     switch (hiderClass) {
       case TRICKSTER:
         return new String[] {
-          "<gray>Right-click to place a</gray>",
-          "<gray>tripwire trap that will</gray>",
-          "<gray>slow trapped hunters and</gray>",
-          "<gray>highlight them for you.</gray>"
+          "<gray>Hit a hunter with this to</gray>",
+          "<gray>stun them for a few seconds -</gray>",
+          "<gray>blinded and unable to move,</gray>",
+          "<gray>just like the round's lock-in.</gray>"
         };
       case PHASER:
         return new String[] {

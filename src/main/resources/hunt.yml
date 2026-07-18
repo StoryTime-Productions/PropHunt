@@ -97,11 +97,17 @@ hunt:
     retain-username: true
     # Cooldown between disguise attempts (in seconds)
     cooldown: 3
+    # Distance (in blocks) within which a lobby disguise NPC turns to face a nearby player.
+    # Purely visual and per-player (packet-based) — 0 disables the effect.
+    stare-distance: 6.0
 
   # Utility item cooldowns (in seconds)
   utility-cooldowns:
-    # Brute class - Resilience Totem (provides temporary resistance)
-    resilience-totem: 30
+    # Brute class - Shockwave (see specs/brute-rebrand-research.md): knocks back and reveals
+    # disguised hiders caught in the blast radius. Replaced the old Resilience Totem.
+    brute-shockwave: 30
+    brute-shockwave-radius: 6.0
+    brute-shockwave-glow-seconds: 4
     # Nimble class - Dash (provides speed boost)
     dash: 15
     # Saboteur class - Scanner (reveals nearby hiders)
@@ -175,10 +181,6 @@ hunt:
         x: 96.0
         y: 66.0
         z: 190.0
-      backrooms:
-        x: 98.0
-        y: 66.0
-        z: 190.0
 
     # Ready tracking hologram location
     ready-status:
@@ -217,6 +219,44 @@ hunt:
         # Visual effects
         action-bar-enabled: true
         title-flash-enabled: true
+
+    # "Recently hurt" combat-tension state - see specs/recently-hurt-tension.md.
+    # Independent of the proximity heartbeat above: driven by hits, not hunter distance.
+    hurt-tension:
+      # How long after the last hit (with no hunter within medium-distance above)
+      # before the tension state clears.
+      timeout-seconds: 10
+      # Fixed-pace elevated heartbeat while the state is active (not distance-scaled).
+      heartbeat-interval-ticks: 18 # ~0.9s
+      heartbeat-volume: 0.65
+      heartbeat-pitch: 1.0
+      # Raid-bell alarm - a burst of rings fired immediately on every hit (no periodic
+      # repeat; a slow timer felt too delayed during active combat).
+      bell-ring-min-count: 4
+      bell-ring-max-count: 6
+      bell-ring-interval-min-ticks: 8
+      bell-ring-interval-max-ticks: 10
+      bell-volume: 0.9
+      # Keeps ringing a fresh burst on this interval for as long as the hurt state is active -
+      # not just once per hit - so it doesn't go quiet until the hider actually gets away.
+      bell-repeat-interval-seconds: 5
+
+    # Idle-triggered spotlight reveal - see specs/idle-spotlight.md. Periodically forces
+    # whichever disguised hider has been stationary longest to briefly undisguise and glow,
+    # so no spot is perfectly safe to camp forever. A hider who keeps moving stays safe.
+    spotlight:
+      # A hider must be stationary at least this long before being revealed. Each hider has
+      # their own personal countdown (shown on their action bar), not a shared scan.
+      min-idle-seconds: 12
+      # Warning cue fires this long before the actual reveal.
+      telegraph-lead-seconds: 2
+      # How long the forced reveal (undisguise + glow) lasts.
+      glow-duration-seconds: 5
+      # A hider who was just spotlighted can't be picked again for this long, so with
+      # multiple idle hiders it rotates instead of fixating on one. Kept much closer to
+      # min-idle-seconds than the original 90s - that gap made a single re-trigger per
+      # round read as "never happens again."
+      reselect-cooldown-seconds: 25
 
   # Map configurations
   maps:
@@ -318,66 +358,29 @@ hunt:
           yaw: 270.0
           pitch: 0.0
 
-    backrooms:
-      display-name: "Backrooms"
-      description: "Endless maze of yellow rooms with fluorescent lighting"
-      world: "hunt_backrooms"
-      hunter-spawn:
-        x: 0.0
-        y: 64.0
-        z: 0.0
-        yaw: 0.0
-        pitch: 0.0
-      hider-spawns:
-        - x: 30.0
-          y: 64.0
-          z: 30.0
-          yaw: 0.0
-          pitch: 0.0
-        - x: -30.0
-          y: 64.0
-          z: 30.0
-          yaw: 90.0
-          pitch: 0.0
-        - x: 30.0
-          y: 64.0
-          z: -30.0
-          yaw: 180.0
-          pitch: 0.0
-        - x: -30.0
-          y: 64.0
-          z: -30.0
-          yaw: 270.0
-          pitch: 0.0
-        - x: 60.0
-          y: 64.0
-          z: 0.0
-          yaw: 0.0
-          pitch: 0.0
-        - x: -60.0
-          y: 64.0
-          z: 0.0
-          yaw: 180.0
-          pitch: 0.0
-        - x: 0.0
-          y: 64.0
-          z: 60.0
-          yaw: 270.0
-          pitch: 0.0
-        - x: 0.0
-          y: 64.0
-          z: -60.0
-          yaw: 90.0
-          pitch: 0.0
-
   # Hider ability cooldowns (in seconds)
   hider-abilities:
     # Trickster class - Trap ability (places slowness traps for hunters)
-    trickster-cooldown: 45
+    trickster-cooldown: 45 # unused - see trickster-strike-cooldown below
+    # Trickster class - Stun-on-hit ability (see specs/trickster-stun-on-hit.md), replacing
+    # the old placed tripwire trap.
+    trickster-strike-cooldown: 12
+    trickster-stun-duration-seconds: 5
     # Phaser class - Phase ability (allows flying through walls)
-    phaser-cooldown: 60
+    phaser-cooldown: 30
+    # Phaser class - max wall thickness (in blocks) it will search through beyond the
+    # point of impact looking for a safe pocket on the other side. Hard-capped at 256
+    # regardless of this value.
+    phaser-max-wall-thickness: 64
+    # Phaser class - max angle (in degrees) off perpendicular the player can be looking at the
+    # wall and still phase through. Prevents diagonal/glancing phase attempts.
+    phaser-max-angle-degrees: 15.0
     # Cloaker class - Invisibility ability (grants temporary invisibility)
-    cloaker-cooldown: 90
+    cloaker-cooldown: 35
+    # Cloaker class - how long the invisibility lasts. Was 10s/90s (~11% uptime) but still felt
+    # overpowered in playtesting because of zero counterplay (see specs/cloaker-balance.md) -
+    # shortened further alongside closing the Scanner-immunity gap.
+    cloaker-duration-seconds: 6
     # Block disguise cooldown (for all hiders - transform into blocks)
     block-disguise-cooldown: 30
 
@@ -417,3 +420,17 @@ hunt:
       innocent-zapper: 8
       # Throwable weapon velocity multiplier
       throwable-velocity: 2.0
+
+  # Passive ambient tracking (Dead by Daylight-inspired scratch marks / red stain equivalents).
+  # Only active in map worlds, never the lobby. See RalphDocs specs/ambient-tracking-layer.md.
+  tracking:
+    # How often (in ticks) the tracking system updates. Lower = smoother but more particles sent.
+    interval-ticks: 4
+    # How long (in seconds) a hider's footprint trail point stays visible to hunters.
+    footprint-lifetime-seconds: 4.0
+    # Max distance (in blocks) a hunter can see footprint trail particles from.
+    footprint-max-visible-distance: 20.0
+    # How far (in blocks) a hunter's facing cone extends in front of them.
+    facing-cone-range-blocks: 6.0
+    # Max distance (in blocks) a hider can see a hunter's facing cone particles from.
+    facing-cone-max-visible-distance: 20.0

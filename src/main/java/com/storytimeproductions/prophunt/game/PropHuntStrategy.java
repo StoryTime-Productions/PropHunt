@@ -29,6 +29,11 @@ public class PropHuntStrategy implements HuntGameModeStrategy {
       return ReadyResult.failure("Please select a hunter class before readying up!");
     }
 
+    if (playerData.getSelectedTeam() == HuntTeam.HUNTERS
+        && playerData.getSelectedDisguise() == null) {
+      return ReadyResult.failure("Please select a disguise before readying up!");
+    }
+
     if (playerData.getSelectedTeam() == HuntTeam.HIDERS
         && playerData.getSelectedHiderClass() == null) {
       return ReadyResult.failure("Please select a hider class before readying up!");

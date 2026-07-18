@@ -45,6 +45,7 @@ public class HuntDeathHandler implements Listener {
   private final Map<UUID, Location> deathLocations = new HashMap<>();
   private int aliveHidersCount = 0; // Track number of alive hiders
   private HuntDisguiseManager disguiseManager; // Reference to disguise manager for cleanup
+  private HiderUtilityListener hiderUtilityListener; // For Trickster's stun-on-hit ability
   private final Set<String> huntWorlds; // Set of configured hunt world names
   private final Set<UUID> pendingSpectator =
       new HashSet<>(); // Tracks deaths being processed by handlePlayerSpectator to prevent
@@ -129,6 +130,15 @@ public class HuntDeathHandler implements Listener {
    */
   public void setDisguiseManager(HuntDisguiseManager disguiseManager) {
     this.disguiseManager = disguiseManager;
+  }
+
+  /**
+   * Sets the hider utility listener reference for Trickster's stun-on-hit ability.
+   *
+   * @param hiderUtilityListener The hider utility listener instance
+   */
+  public void setHiderUtilityListener(HiderUtilityListener hiderUtilityListener) {
+    this.hiderUtilityListener = hiderUtilityListener;
   }
 
   /**
@@ -701,16 +711,26 @@ public class HuntDeathHandler implements Listener {
 
     // Enforce Hunt PvP rules
     if (attackerTeam == HuntTeam.HIDERS && victimTeam == HuntTeam.HUNTERS) {
-      // Hiders cannot damage hunters
+      // Hiders cannot deal real damage to hunters, but Trickster's stun-on-hit ability is a
+      // deliberate exception - see specs/trickster-stun-on-hit.md. The hit itself never deals
+      // damage either way; it either lands the stun or is just a blocked attack.
       event.setCancelled(true);
-      attacker.sendMessage(
-          Component.text("You cannot attack hunters as a hider!", NamedTextColor.RED));
-      plugin
-          .getLogger()
-          .info(
-              "Blocked hider " + attacker.getName() + " from attacking hunter " + victim.getName());
+      boolean stunned =
+          hiderUtilityListener != null && hiderUtilityListener.tryTricksterStrike(attacker, victim);
+      if (!stunned) {
+        attacker.sendMessage(
+            Component.text("You cannot attack hunters as a hider!", NamedTextColor.RED));
+        plugin
+            .getLogger()
+            .info(
+                "Blocked hider "
+                    + attacker.getName()
+                    + " from attacking hunter "
+                    + victim.getName());
+      }
     } else if (attackerTeam == HuntTeam.HUNTERS && victimTeam == HuntTeam.HIDERS) {
       // Hunters can damage hiders - allow the damage (don't cancel)
+      prepPhaseManager.recordHiderHit(victim.getUniqueId());
       plugin
           .getLogger()
           .info("Allowed hunter " + attacker.getName() + " to attack hider " + victim.getName());

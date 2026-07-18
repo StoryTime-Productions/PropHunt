@@ -1,6 +1,8 @@
 package com.storytimeproductions.prophunt.game;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import me.libraryaddict.disguise.DisguiseAPI;
@@ -9,7 +11,6 @@ import me.libraryaddict.disguise.disguisetypes.MiscDisguise;
 import me.libraryaddict.disguise.disguisetypes.watchers.FallingBlockWatcher;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
@@ -19,9 +20,6 @@ import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
 import org.bukkit.block.data.Orientable;
 import org.bukkit.block.data.Rotatable;
-import org.bukkit.boss.BarColor;
-import org.bukkit.boss.BarStyle;
-import org.bukkit.boss.BossBar;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -34,7 +32,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 
 /**
  * Listener that handles hider utility item abilities and block transformation. Each hider class has
@@ -43,9 +40,13 @@ import org.bukkit.scheduler.BukkitTask;
 public class HiderUtilityListener implements Listener {
 
   // Max distance (blocks) to ray trace forward looking for a wall to phase through.
-  private static final int PHASE_MAX_DISTANCE = 5;
-  // Max wall thickness (blocks) to search through beyond the point of impact.
-  private static final int PHASE_MAX_WALL_THICKNESS = 4;
+  private static final int PHASE_MAX_DISTANCE = 4;
+  // Default max wall thickness (blocks) to search through beyond the point of impact, used if
+  // hider-abilities.phaser-max-wall-thickness isn't set in hunt.yml.
+  private static final int PHASE_MAX_WALL_THICKNESS = 64;
+  // Hard ceiling on the configured wall thickness, regardless of hunt.yml, so a misconfigured
+  // value can't turn this into an unbounded per-block search.
+  private static final int PHASE_MAX_WALL_THICKNESS_HARD_LIMIT = 256;
 
   private final JavaPlugin plugin;
   private final FileConfiguration config;
@@ -53,8 +54,6 @@ public class HiderUtilityListener implements Listener {
   private final Map<UUID, Long> phaserCooldowns;
   private final Map<UUID, Long> cloakerCooldowns;
   private final Map<UUID, Long> blockDisguiseCooldowns;
-  private final Map<UUID, BossBar> playerBossBars;
-  private final Map<UUID, BukkitTask> bossBarTasks;
   private final Map<UUID, BlockData> playerBlockData;
 
   private final HuntLobbyManager lobbyManager;
@@ -73,8 +72,6 @@ public class HiderUtilityListener implements Listener {
     this.phaserCooldowns = new HashMap<>();
     this.cloakerCooldowns = new HashMap<>();
     this.blockDisguiseCooldowns = new HashMap<>();
-    this.playerBossBars = new HashMap<>();
-    this.bossBarTasks = new HashMap<>();
     this.playerBlockData = new HashMap<>();
   }
 
@@ -196,9 +193,8 @@ public class HiderUtilityListener implements Listener {
 
     switch (hiderClass) {
       case TRICKSTER:
-        if (material == Material.TRIPWIRE_HOOK) {
-          handleTricksterTrap(player, playerId, event);
-        }
+        // No right-click ability - Trickster's stun now triggers on landing a hit on a hunter,
+        // handled by tryTricksterStrike() from HuntDeathHandler's PvP rule enforcement instead.
         break;
       case PHASER:
         if (material == Material.ENDER_PEARL) {
@@ -222,7 +218,7 @@ public class HiderUtilityListener implements Listener {
    */
   private void handleBlockTransformation(Player player, PlayerInteractEvent event) {
     UUID playerId = player.getUniqueId();
-    int cooldownSeconds = config.getInt("hider-abilities.block-disguise-cooldown", 5);
+    int cooldownSeconds = config.getInt("hunt.hider-abilities.block-disguise-cooldown", 30);
 
     // Debug logging
     boolean debug = plugin.getConfig().getBoolean("debug", false);
@@ -272,7 +268,6 @@ public class HiderUtilityListener implements Listener {
       if (blockType.isSolid() && !isBlacklisted(blockType)) {
         transformIntoBlock(player, blockType);
         blockDisguiseCooldowns.put(playerId, System.currentTimeMillis());
-        startBossBarCooldown(player, cooldownSeconds);
         event.setCancelled(true);
       } else if (debug) {
         plugin
@@ -395,110 +390,93 @@ public class HiderUtilityListener implements Listener {
     player.sendMessage(Component.text(message).color(NamedTextColor.GREEN));
   }
 
-  /** Handles the Trickster's trap ability. */
-  private void handleTricksterTrap(Player player, UUID playerId, PlayerInteractEvent event) {
-    int cooldownSeconds = config.getInt("hider-abilities.trickster-cooldown", 20);
-
-    if (isOnCooldown(playerId, tricksterCooldowns, cooldownSeconds)) {
-      long remainingTime = getRemainingCooldown(playerId, tricksterCooldowns, cooldownSeconds);
-      startUtilityCooldownBossBar(player, "Trap", remainingTime);
-      event.setCancelled(true);
-      return;
+  /**
+   * Attempts Trickster's stun-on-hit ability: if the attacker is a Trickster and not on cooldown,
+   * applies the same "locked in place and blinded" effect stack used for the round-start hunter
+   * lock-in (see specs/trickster-stun-on-hit.md), scaled down to a few seconds, instead of the hit
+   * dealing any real damage. Replaces the previous tripwire-trap ability entirely.
+   *
+   * @param attacker The hider attempting the strike
+   * @param victim The hunter being struck
+   * @return true if the stun was applied (caller should skip the generic "can't attack" message)
+   */
+  public boolean tryTricksterStrike(Player attacker, Player victim) {
+    if (getPlayerHiderClass(attacker) != HiderClass.TRICKSTER) {
+      return false;
     }
 
-    // Create a temporary trap that slows hunters who walk over it
-    Block targetBlock = event.getClickedBlock();
-    if (targetBlock != null) {
-      // Mark this location as a trap for 30 seconds
-      createTricksterTrap(player, targetBlock.getLocation().add(0, 1, 0));
-      tricksterCooldowns.put(playerId, System.currentTimeMillis());
-
-      player.sendMessage(
-          Component.text("Trap placed! Hunters who walk here will be slowed.")
-              .color(NamedTextColor.GOLD));
-      event.setCancelled(true);
+    UUID attackerId = attacker.getUniqueId();
+    int cooldownSeconds = config.getInt("hunt.hider-abilities.trickster-strike-cooldown", 12);
+    if (isOnCooldown(attackerId, tricksterCooldowns, cooldownSeconds)) {
+      return false;
     }
+    tricksterCooldowns.put(attackerId, System.currentTimeMillis());
+
+    applyTricksterStunEffect(victim);
+
+    attacker.playSound(attacker.getLocation(), Sound.BLOCK_TRIPWIRE_CLICK_ON, 1.0f, 1.0f);
+    attacker.sendMessage(
+        Component.text("You've stunned " + victim.getName() + "!").color(NamedTextColor.GREEN));
+    victim.sendMessage(Component.text("A Trickster stunned you!").color(NamedTextColor.RED));
+    return true;
   }
 
-  /** Creates a temporary trap that affects hunters. */
-  private void createTricksterTrap(Player trickster, org.bukkit.Location trapLocation) {
-    // Visual effect for the trap
-    trapLocation.getWorld().spawnParticle(Particle.FLAME, trapLocation, 10, 0.5, 0.1, 0.5, 0.1);
+  /**
+   * Applies the round-start hunter-lock-in effect stack, scaled to a short stun duration, plus a
+   * full position-and-look freeze. Potion effects alone (even max-level slowness) stop movement but
+   * not camera rotation, so a hunter could still look around freely during the stun - the repeating
+   * re-teleport-to-frozen-location task below locks both, matching Nirav's "can't move nor look
+   * anywhere" request 2026-07-17.
+   */
+  private void applyTricksterStunEffect(Player hunter) {
+    int durationTicks =
+        config.getInt("hunt.hider-abilities.trickster-stun-duration-seconds", 5) * 20;
 
-    // Create a repeating task that checks for hunters in the area
+    for (PotionEffectType effectType :
+        new PotionEffectType[] {
+          PotionEffectType.BLINDNESS,
+          PotionEffectType.DARKNESS,
+          PotionEffectType.SLOWNESS,
+          PotionEffectType.WEAKNESS,
+          PotionEffectType.MINING_FATIGUE
+        }) {
+      hunter.removePotionEffect(effectType);
+    }
+
+    hunter.addPotionEffect(
+        new PotionEffect(PotionEffectType.BLINDNESS, durationTicks, 1, false, false, true));
+    hunter.addPotionEffect(
+        new PotionEffect(PotionEffectType.DARKNESS, durationTicks, 1, false, false, true));
+    hunter.addPotionEffect(
+        new PotionEffect(PotionEffectType.SLOWNESS, durationTicks, 255, false, false, true));
+    hunter.addPotionEffect(
+        new PotionEffect(PotionEffectType.WEAKNESS, durationTicks, 100, false, false, true));
+    hunter.addPotionEffect(
+        new PotionEffect(PotionEffectType.MINING_FATIGUE, durationTicks, 100, false, false, true));
+
+    hunter.playSound(hunter.getLocation(), Sound.ENTITY_WITCH_CELEBRATE, 1.0f, 0.8f);
+
+    Location frozenLocation = hunter.getLocation().clone();
     new BukkitRunnable() {
-      private int duration = 30 * 20; // 30 seconds in ticks
+      int ticksRemaining = durationTicks;
 
       @Override
       public void run() {
-        duration -= 20; // Decrease by 1 second
-
-        if (duration <= 0) {
+        if (!hunter.isOnline() || ticksRemaining <= 0) {
           cancel();
           return;
         }
-
-        // Check for hunters within 2 blocks of the trap
-        for (Player nearbyPlayer : trapLocation.getWorld().getPlayers()) {
-          if (isPlayerHunter(nearbyPlayer)
-              && nearbyPlayer.getLocation().distance(trapLocation) <= 2.0) {
-
-            // Apply slowness effect
-            nearbyPlayer.addPotionEffect(
-                new PotionEffect(PotionEffectType.SLOWNESS, 60, 1)); // 3 seconds
-            nearbyPlayer.sendMessage(
-                Component.text("You've been trapped by a Trickster!").color(NamedTextColor.RED));
-            nearbyPlayer.playSound(
-                nearbyPlayer.getLocation(), Sound.BLOCK_TRIPWIRE_CLICK_ON, 1.0f, 1.0f);
-
-            // Highlight the trapped hunter for the trickster (glowing effect)
-            if (trickster.isOnline()) {
-              // Apply glowing effect visible only to the trickster
-              nearbyPlayer.addPotionEffect(
-                  new PotionEffect(PotionEffectType.GLOWING, 100, 0)); // 5 seconds
-
-              // Notify the trickster with enhanced message
-              trickster.sendMessage(
-                  Component.text(
-                          "Your trap caught "
-                              + nearbyPlayer.getName()
-                              + "! They are now highlighted.")
-                      .color(NamedTextColor.GREEN));
-
-              // Remove the glowing effect after 5 seconds
-              new BukkitRunnable() {
-                @Override
-                public void run() {
-                  if (nearbyPlayer.isOnline()) {
-                    nearbyPlayer.removePotionEffect(PotionEffectType.GLOWING);
-                  }
-                }
-              }.runTaskLater(plugin, 100L); // 5 seconds
-            }
-
-            // Remove the trap after triggering
-            cancel();
-            return;
-          }
-        }
-
-        // Show trap particles every second
-        if (duration % 20 == 0) {
-          trapLocation
-              .getWorld()
-              .spawnParticle(Particle.FLAME, trapLocation, 5, 0.3, 0.1, 0.3, 0.1);
-        }
+        hunter.teleport(frozenLocation);
+        ticksRemaining--;
       }
-    }.runTaskTimer(plugin, 0L, 20L);
+    }.runTaskTimer(plugin, 0L, 1L);
   }
 
   /** Handles the Phaser's phase ability. */
   private void handlePhaserPhase(Player player, UUID playerId, PlayerInteractEvent event) {
-    int cooldownSeconds = config.getInt("hider-abilities.phaser-cooldown", 7);
+    int cooldownSeconds = config.getInt("hunt.hider-abilities.phaser-cooldown", 30);
 
     if (isOnCooldown(playerId, phaserCooldowns, cooldownSeconds)) {
-      long remainingTime = getRemainingCooldown(playerId, phaserCooldowns, cooldownSeconds);
-      startUtilityCooldownBossBar(player, "Phase", remainingTime);
       event.setCancelled(true);
       return;
     }
@@ -512,23 +490,24 @@ public class HiderUtilityListener implements Listener {
       // Visual and audio effects at starting location
       Location startLocation = player.getLocation();
       player.getWorld().spawnParticle(Particle.PORTAL, startLocation, 30, 0.5, 1, 0.5, 1);
+      player.playSound(startLocation, Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
+
+      // Particle trail along the straight-line path through the wall, so the phase reads as
+      // passing through it rather than two disconnected particle bursts.
+      spawnPhaseTrail(startLocation, teleportLocation);
 
       // Teleport the player
       player.teleport(teleportLocation);
 
       // Visual and audio effects at destination
       player.getWorld().spawnParticle(Particle.PORTAL, teleportLocation, 30, 0.5, 1, 0.5, 1);
-
-      player.sendMessage(
-          Component.text("You phased through the wall!").color(NamedTextColor.LIGHT_PURPLE));
+      player.playSound(teleportLocation, Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 1.0f);
 
       phaserCooldowns.put(playerId, System.currentTimeMillis());
-    } else {
-      // No valid phase location found
-      player.sendMessage(
-          Component.text("No wall to phase through! Face a wall with space behind it.")
-              .color(NamedTextColor.RED));
     }
+    // No valid phase location found - the ability status action bar square already shows
+    // yellow (ready but not usable) instead of green when not looking straight at a wall, so
+    // no separate failure message is needed here.
 
     event.setCancelled(true);
   }
@@ -557,10 +536,42 @@ public class HiderUtilityListener implements Listener {
 
     Location wallEntry = hit.getHitPosition().toLocation(player.getWorld());
     Location playerLocation = player.getLocation();
-    for (int step = 0; step <= PHASE_MAX_WALL_THICKNESS; step++) {
-      Location candidate = wallEntry.clone().add(direction.clone().multiply(step + 0.5));
-      if (isSafeLocation(candidate)) {
-        return createTeleportLocation(candidate, playerLocation);
+
+    // Step through along the wall's true perpendicular normal, not the player's raw look
+    // direction - at an oblique angle, continuing along the look vector travels a longer
+    // diagonal path than the wall's actual thickness, overshooting well past its far side. The
+    // hit face's direction points outward from the wall (back toward the player), so negate it
+    // to get the straight-through direction.
+    org.bukkit.util.Vector wallNormal = hit.getHitBlockFace().getDirection().multiply(-1);
+
+    // Only allow phasing when looking close to straight-on at the wall, not diagonally - the
+    // dot product of two unit vectors is the cosine of the angle between them, so requiring it
+    // stay above cos(maxAngle) rejects glancing/diagonal aims.
+    double maxAngleDegrees =
+        config.getDouble("hunt.hider-abilities.phaser-max-angle-degrees", 15.0);
+    double angleCos = direction.dot(wallNormal);
+    if (angleCos < Math.cos(Math.toRadians(maxAngleDegrees))) {
+      return null; // Not looking straight-on at the wall
+    }
+
+    int maxWallThickness =
+        Math.min(
+            config.getInt(
+                "hunt.hider-abilities.phaser-max-wall-thickness", PHASE_MAX_WALL_THICKNESS),
+            PHASE_MAX_WALL_THICKNESS_HARD_LIMIT);
+    // Small vertical search at each forward step, closest-to-original-height first. The wall may
+    // open into a room whose floor isn't at exactly the same height as where the ray struck the
+    // wall - without this, a real, close, obviously-usable floor gets skipped and the search
+    // keeps walking forward looking for ground at the exact original height, landing far past
+    // clearly good open space right behind the wall.
+    int[] verticalOffsets = {0, -1, -2, -3, 1};
+    for (int step = 0; step <= maxWallThickness; step++) {
+      Location forward = wallEntry.clone().add(wallNormal.clone().multiply(step + 0.5));
+      for (int verticalOffset : verticalOffsets) {
+        Location candidate = forward.clone().add(0, verticalOffset, 0);
+        if (isSafeLocation(candidate)) {
+          return createTeleportLocation(candidate, playerLocation);
+        }
       }
     }
 
@@ -599,30 +610,54 @@ public class HiderUtilityListener implements Listener {
   }
 
   /**
-   * Creates a properly centered teleport location with the player's original orientation.
+   * Builds the final teleport location, preserving the player's original orientation.
    *
-   * @param location The raw location to teleport to
+   * @param location The raw, already-validated location to teleport to
    * @param playerLocation The player's original location for yaw/pitch reference
    * @return A properly formatted teleport location
    */
   private Location createTeleportLocation(Location location, Location playerLocation) {
     Location teleportLocation = location.clone();
-    // Center the player in the block
-    teleportLocation.setX(teleportLocation.getBlockX() + 0.5);
-    teleportLocation.setZ(teleportLocation.getBlockZ() + 0.5);
+    // Keep the exact ray-computed X/Z - isSafeLocation() already validated this position's
+    // block is safe, so re-centering here would only discard precision and drift the
+    // destination off the player's exact facing direction (see specs/phaser-redesign-2.md).
+    // Y does need snapping though: the ray hit position (and therefore this candidate) carries
+    // whatever fractional height the wall was struck at, which floats the player above the
+    // ground block's surface by that same fraction instead of standing flush on it.
+    teleportLocation.setY(Math.floor(teleportLocation.getY()));
     // Preserve the player's original orientation
     teleportLocation.setYaw(playerLocation.getYaw());
     teleportLocation.setPitch(playerLocation.getPitch());
     return teleportLocation;
   }
 
+  /**
+   * Spawns a line of portal particles along the straight-line path from the phase start location to
+   * the destination, so the ability visually reads as passing through the wall.
+   *
+   * @param from The phase start location
+   * @param to The phase destination location
+   */
+  private void spawnPhaseTrail(Location from, Location to) {
+    org.bukkit.util.Vector delta = to.toVector().subtract(from.toVector());
+    double distance = delta.length();
+    if (distance < 0.01) {
+      return;
+    }
+    org.bukkit.util.Vector step = delta.clone().multiply(1.0 / (distance * 4.0));
+    Location cursor = from.clone();
+    int points = (int) Math.ceil(distance * 4.0);
+    for (int i = 0; i <= points; i++) {
+      from.getWorld().spawnParticle(Particle.PORTAL, cursor, 3, 0.1, 0.1, 0.1, 0.02);
+      cursor.add(step);
+    }
+  }
+
   /** Handles the Cloaker's invisibility ability. */
   private void handleCloakerInvisibility(Player player, UUID playerId, PlayerInteractEvent event) {
-    int cooldownSeconds = config.getInt("hider-abilities.cloaker-cooldown", 20);
+    int cooldownSeconds = config.getInt("hunt.hider-abilities.cloaker-cooldown", 35);
 
     if (isOnCooldown(playerId, cloakerCooldowns, cooldownSeconds)) {
-      long remainingTime = getRemainingCooldown(playerId, cloakerCooldowns, cooldownSeconds);
-      startUtilityCooldownBossBar(player, "Cloak", remainingTime);
       event.setCancelled(true);
       return;
     }
@@ -644,39 +679,45 @@ public class HiderUtilityListener implements Listener {
         }
       }
 
-      // Debug logging
-      if (originalBlockData != null) {
-        plugin
-            .getLogger()
-            .info(
-                "Cloaker "
-                    + player.getName()
-                    + " going invisible - storing block data: "
-                    + originalBlockData.getMaterial().name());
-      } else {
-        plugin
-            .getLogger()
-            .warning("Cloaker " + player.getName() + " going invisible - no block data found!");
+      if (plugin.getConfig().getBoolean("debug", false)) {
+        if (originalBlockData != null) {
+          plugin
+              .getLogger()
+              .info(
+                  "Cloaker "
+                      + player.getName()
+                      + " going invisible - storing block data: "
+                      + originalBlockData.getMaterial().name());
+        } else {
+          plugin
+              .getLogger()
+              .warning("Cloaker " + player.getName() + " going invisible - no block data found!");
+        }
       }
 
       // Completely undisguise the player instead of setting to air block
       DisguiseAPI.undisguiseToAll(player);
-    } else {
-      // Debug logging for when no disguise is active
+    } else if (plugin.getConfig().getBoolean("debug", false)) {
       plugin
           .getLogger()
           .info("Cloaker " + player.getName() + " going invisible - not currently disguised");
     }
 
-    // Apply invisibility for 10 seconds
-    player.addPotionEffect(new PotionEffect(PotionEffectType.INVISIBILITY, 200, 0)); // 10 seconds
+    // Apply invisibility - duration is deliberately shorter relative to its cooldown than it
+    // used to be (was 10s/20s, ~50% uptime with no counterplay - see
+    // specs/cloaker-balance.md), to bring its uptime ratio in line with the other hider
+    // abilities.
+    int durationSeconds = config.getInt("hunt.hider-abilities.cloaker-duration-seconds", 6);
+    player.addPotionEffect(
+        new PotionEffect(PotionEffectType.INVISIBILITY, durationSeconds * 20, 0));
 
     // Visual and audio effects
     player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation(), 20, 0.5, 1, 0.5, 0.1);
     player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 0.5f);
 
     player.sendMessage(
-        Component.text("You are now invisible for 10 seconds!").color(NamedTextColor.GRAY));
+        Component.text("You are now invisible for " + durationSeconds + " seconds!")
+            .color(NamedTextColor.GRAY));
 
     cloakerCooldowns.put(playerId, System.currentTimeMillis());
 
@@ -856,131 +897,74 @@ public class HiderUtilityListener implements Listener {
     event.setCancelled(true);
   }
 
-  /** Starts a boss bar showing the block disguise cooldown. */
-  private void startBossBarCooldown(Player player, int cooldownSeconds) {
-    // Remove any existing boss bar
-    removeBossBar(player);
-
-    // Create new boss bar
-    BossBar bossBar = Bukkit.createBossBar("Block Disguise Cooldown", BarColor.RED, BarStyle.SOLID);
-
-    bossBar.setProgress(0.0); // Start empty
-    bossBar.addPlayer(player);
-
-    UUID playerId = player.getUniqueId();
-    playerBossBars.put(playerId, bossBar);
-
-    // Create a task to update the boss bar
-    BukkitTask task =
-        new BukkitRunnable() {
-          private double elapsed = 0;
-          private final double totalTime = cooldownSeconds;
-
-          @Override
-          public void run() {
-            if (!player.isOnline() || !isPlayerHider(player)) {
-              removeBossBar(player);
-              cancel();
-              return;
-            }
-
-            elapsed += 0.1; // Update every 2 ticks (0.1 seconds)
-            double progress = Math.min(elapsed / totalTime, 1.0);
-
-            bossBar.setProgress(progress);
-
-            if (progress >= 1.0) {
-              // Cooldown complete
-              bossBar.setTitle("Block Disguise Ready!");
-              bossBar.setColor(BarColor.GREEN);
-
-              // Remove boss bar after 2 seconds
-              Bukkit.getScheduler().runTaskLater(plugin, () -> removeBossBar(player), 40L);
-              cancel();
-            } else {
-              // Update title with remaining time
-              long remainingSeconds = (long) Math.ceil(totalTime - elapsed);
-              bossBar.setTitle("Block Disguise Cooldown: " + remainingSeconds + "s");
-            }
-          }
-        }.runTaskTimer(plugin, 0L, 2L); // Update every 2 ticks
-
-    bossBarTasks.put(playerId, task);
-  }
-
-  /** Starts a boss bar cooldown for utility items (shows remaining time from current cooldown). */
-  private void startUtilityCooldownBossBar(
-      Player player, String abilityName, long remainingSeconds) {
-    // Remove any existing boss bar
-    removeBossBar(player);
-
-    // Create new boss bar
-    BossBar bossBar =
-        Bukkit.createBossBar(
-            abilityName + " Cooldown: " + remainingSeconds + "s", BarColor.RED, BarStyle.SOLID);
-
-    // Start with full progress (cooldown remaining) and decrease over time
-    bossBar.setProgress(1.0);
-    bossBar.addPlayer(player);
-
-    UUID playerId = player.getUniqueId();
-    playerBossBars.put(playerId, bossBar);
-
-    // Store the initial remaining time for progress calculation
-    final long initialTime = remainingSeconds;
-
-    // Create a task to update the boss bar
-    BukkitTask task =
-        new BukkitRunnable() {
-          private long timeLeft = remainingSeconds;
-
-          @Override
-          public void run() {
-            if (!player.isOnline() || !isPlayerHider(player)) {
-              removeBossBar(player);
-              cancel();
-              return;
-            }
-
-            timeLeft--;
-
-            if (timeLeft <= 0) {
-              // Cooldown complete
-              bossBar.setTitle(abilityName + " Ready!");
-              bossBar.setColor(BarColor.GREEN);
-              bossBar.setProgress(1.0);
-
-              // Remove boss bar after 2 seconds
-              Bukkit.getScheduler().runTaskLater(plugin, () -> removeBossBar(player), 40L);
-              cancel();
-            } else {
-              // Update title and progress with remaining time
-              double progressValue = Math.max(0.0, (double) timeLeft / initialTime);
-              bossBar.setProgress(progressValue);
-              bossBar.setTitle(abilityName + " Cooldown: " + timeLeft + "s");
-            }
-          }
-        }.runTaskTimer(plugin, 20L, 20L); // Update every second
-
-    bossBarTasks.put(playerId, task);
-  }
-
-  /** Removes a player's boss bar and associated task. */
-  private void removeBossBar(Player player) {
-    UUID playerId = player.getUniqueId();
-
-    // Remove boss bar
-    BossBar bossBar = playerBossBars.remove(playerId);
-    if (bossBar != null) {
-      bossBar.removePlayer(player);
-      bossBar.removeAll();
+  /**
+   * Returns this player's current hider ability statuses for the persistent action bar: their class
+   * ability first, then block-disguise. Empty if they aren't a valid hider.
+   *
+   * @param player The player to check
+   * @return The player's ability statuses, in display order
+   */
+  public List<AbilityStatus> getHiderAbilityStatuses(Player player) {
+    if (!isPlayerHider(player)) {
+      return List.of();
+    }
+    HiderClass hiderClass = getPlayerHiderClass(player);
+    if (hiderClass == null) {
+      return List.of();
     }
 
-    // Cancel task
-    BukkitTask task = bossBarTasks.remove(playerId);
-    if (task != null) {
-      task.cancel();
+    List<AbilityStatus> statuses = new ArrayList<>();
+    UUID playerId = player.getUniqueId();
+
+    switch (hiderClass) {
+      case TRICKSTER ->
+          statuses.add(
+              buildStatus(
+                  "STUN", playerId, tricksterCooldowns, "trickster-strike-cooldown", 12, true));
+      case PHASER ->
+          statuses.add(
+              buildStatus(
+                  "PHASE",
+                  playerId,
+                  phaserCooldowns,
+                  "phaser-cooldown",
+                  30,
+                  findPhaseLocation(player) != null));
+      case CLOAKER ->
+          statuses.add(
+              buildStatus("CLOAK", playerId, cloakerCooldowns, "cloaker-cooldown", 20, true));
+      default -> {
+        // No action needed for unknown hider classes
+      }
     }
+
+    statuses.add(
+        buildStatus(
+            "DISGUISE", playerId, blockDisguiseCooldowns, "block-disguise-cooldown", 30, true));
+
+    // Ambient victim-side status for hunter-applied debuffs (e.g. Springtrap's Vengeful Echo) -
+    // gives the hider a persistent indicator of what's currently affecting them instead of
+    // relying solely on a one-off chat message. See specs/ambient-tracking-layer.md.
+    PotionEffect slowness = player.getPotionEffect(PotionEffectType.SLOWNESS);
+    if (slowness != null) {
+      int remainingSeconds = (int) Math.ceil(slowness.getDuration() / 20.0);
+      statuses.add(new AbilityStatus("SLOWED", true, remainingSeconds, 3, true));
+    }
+
+    return statuses;
+  }
+
+  private AbilityStatus buildStatus(
+      String label,
+      UUID playerId,
+      Map<UUID, Long> cooldownMap,
+      String configKey,
+      int defaultCooldown,
+      boolean conditionMet) {
+    int totalSeconds = config.getInt("hunt.hider-abilities." + configKey, defaultCooldown);
+    boolean onCooldown = isOnCooldown(playerId, cooldownMap, totalSeconds);
+    long remaining = onCooldown ? getRemainingCooldown(playerId, cooldownMap, totalSeconds) : 0;
+    return new AbilityStatus(label, onCooldown, remaining, totalSeconds, conditionMet);
   }
 
   /** Returns true if this block type opens a UI or toggles state (hiders cannot use these). */
@@ -1062,7 +1046,10 @@ public class HiderUtilityListener implements Listener {
     long cooldownMillis = cooldownSeconds * 1000L;
     long elapsedMillis = currentTime - lastUsed;
     long remainingMillis = cooldownMillis - elapsedMillis;
-    return Math.max(0, remainingMillis / 1000);
+    // Round up, not down - flooring meant the last <1s of a cooldown displayed "0s" while the
+    // ability was still genuinely on cooldown (isOnCooldown() checks remainingMillis > 0, not
+    // remainingMillis >= 1000), which read as a bug: "ready" showing red/counting.
+    return Math.max(0, (long) Math.ceil(remainingMillis / 1000.0));
   }
 
   /** Checks if a player is in any hunt world. */
@@ -1144,18 +1131,53 @@ public class HiderUtilityListener implements Listener {
     return playerBlockData.get(playerId);
   }
 
+  /**
+   * Temporarily removes a player's block disguise (and any invisibility) without clearing the
+   * stored block data, so {@link #reapplyStoredBlockDisguise(Player)} can restore the same disguise
+   * afterward. Used by the idle-spotlight reveal (see specs/idle-spotlight.md) - does nothing if
+   * the player isn't currently block-disguised.
+   *
+   * @param player The player to temporarily reveal
+   */
+  public void temporarilyUndisguise(Player player) {
+    if (!playerBlockData.containsKey(player.getUniqueId())) {
+      return;
+    }
+    if (DisguiseAPI.isDisguised(player)) {
+      DisguiseAPI.undisguiseToAll(player);
+    }
+    if (player.hasPotionEffect(PotionEffectType.INVISIBILITY)) {
+      player.removePotionEffect(PotionEffectType.INVISIBILITY);
+    }
+  }
+
+  /**
+   * Reapplies a player's previously stored block disguise, e.g. after {@link
+   * #temporarilyUndisguise(Player)}. Does nothing if no block data is stored for them.
+   *
+   * @param player The player to re-disguise
+   */
+  public void reapplyStoredBlockDisguise(Player player) {
+    BlockData blockData = playerBlockData.get(player.getUniqueId());
+    if (blockData == null) {
+      return;
+    }
+    if (DisguiseAPI.isDisguised(player)) {
+      DisguiseAPI.undisguiseToAll(player);
+    }
+    MiscDisguise disguise = new MiscDisguise(DisguiseType.FALLING_BLOCK);
+    disguise.setReplaceSounds(true);
+    FallingBlockWatcher watcher = (FallingBlockWatcher) disguise.getWatcher();
+    watcher.setBlockData(blockData);
+    DisguiseAPI.disguiseToAll(player, disguise);
+  }
+
   /** Clears all cooldowns for a specific player. */
   public void clearPlayerCooldowns(UUID playerId) {
     tricksterCooldowns.remove(playerId);
     phaserCooldowns.remove(playerId);
     cloakerCooldowns.remove(playerId);
     blockDisguiseCooldowns.remove(playerId);
-
-    // Clean up boss bar and block data
-    Player player = Bukkit.getPlayer(playerId);
-    if (player != null) {
-      removeBossBar(player);
-    }
     playerBlockData.remove(playerId);
   }
 
@@ -1165,16 +1187,6 @@ public class HiderUtilityListener implements Listener {
     phaserCooldowns.clear();
     cloakerCooldowns.clear();
     blockDisguiseCooldowns.clear();
-
-    // Clean up all boss bars and block data
-    for (BossBar bossBar : playerBossBars.values()) {
-      bossBar.removeAll();
-    }
-    for (BukkitTask task : bossBarTasks.values()) {
-      task.cancel();
-    }
-    playerBossBars.clear();
-    bossBarTasks.clear();
     playerBlockData.clear();
   }
 }
