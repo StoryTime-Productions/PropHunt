@@ -27,6 +27,7 @@ public class HuntCleanupListener implements Listener {
   private final HuntDisguisePassiveListener passiveListener;
   private final HiderUtilityListener hiderUtilityListener;
   private final HuntPrepPhaseManager prepPhaseManager;
+  private final HuntSpotlightListener spotlightListener;
   private final String huntWorldName;
   private final Set<String> huntWorlds;
 
@@ -41,6 +42,7 @@ public class HuntCleanupListener implements Listener {
    * @param passiveListener The passive listener instance
    * @param hiderUtilityListener The hider utility listener instance
    * @param prepPhaseManager The prep phase manager instance
+   * @param spotlightListener The idle-spotlight listener instance
    * @param huntWorldName The name of the hunt world (null to handle all worlds)
    */
   public HuntCleanupListener(
@@ -52,6 +54,7 @@ public class HuntCleanupListener implements Listener {
       HuntDisguisePassiveListener passiveListener,
       HiderUtilityListener hiderUtilityListener,
       HuntPrepPhaseManager prepPhaseManager,
+      HuntSpotlightListener spotlightListener,
       String huntWorldName) {
     this.plugin = plugin;
     this.hologramManager = hologramManager;
@@ -61,6 +64,7 @@ public class HuntCleanupListener implements Listener {
     this.passiveListener = passiveListener;
     this.hiderUtilityListener = hiderUtilityListener;
     this.prepPhaseManager = prepPhaseManager;
+    this.spotlightListener = spotlightListener;
     this.huntWorldName = huntWorldName;
     this.huntWorlds = new HashSet<>();
 
@@ -219,12 +223,14 @@ public class HuntCleanupListener implements Listener {
     // Remove from prep phase if active
     if (prepPhaseManager != null) {
       prepPhaseManager.removePlayer(player.getUniqueId());
+      prepPhaseManager.clearHurtTensionState(player.getUniqueId());
     }
 
-    // Clear their kit items
-    if (player.getWorld().toString() != "world") {
-      kitManager.removePlayerKit(player);
-    }
+    // Clear their kit items. This only runs when the player has genuinely left the hunt
+    // experience (disconnected, or moved to a non-hunt world) - moving between hunt worlds
+    // (including a round ending and returning to the hunt lobby) is handled separately and
+    // intentionally preserves kit/disguise/size (see specs/lobby-return-persistence.md).
+    kitManager.removePlayerKit(player);
 
     // Remove their disguise and reset entity size
     disguiseManager.removeDisguise(player);
@@ -237,6 +243,9 @@ public class HuntCleanupListener implements Listener {
 
     // Clear passive ability effects and tasks
     passiveListener.clearPlayerPassiveEffects(player.getUniqueId());
+
+    // Clear idle-spotlight tracking state
+    spotlightListener.clearPlayerState(player.getUniqueId());
 
     plugin
         .getLogger()

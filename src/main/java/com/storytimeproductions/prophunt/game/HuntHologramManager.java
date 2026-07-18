@@ -230,7 +230,7 @@ public class HuntHologramManager {
    *
    * @param playerId The UUID of the player
    * @param playerName The display name of the player
-   * @param mapName The map name (e.g. "castle", "backrooms")
+   * @param mapName The map name (e.g. "castle", "office")
    */
   public void addPlayerToMap(UUID playerId, String playerName, String mapName) {
     Boolean flag = playerMapFlags.get(playerId);
