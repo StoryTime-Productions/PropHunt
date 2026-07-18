@@ -4,7 +4,11 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
-/** Handles clicks on the gamemode selection area to cycle between Hunt game modes. */
+/**
+ * Handles right-clicks on the gamemode-selection hologram, cycling through Prop Hunt, Imposter
+ * Hunt, and NextBot Hunt via {@link HuntGameModeManager}. Only active while no prep phase is
+ * currently running, since switching gamemode mid-round wouldn't be meaningful.
+ */
 public class HuntGameModeHologramListener implements Listener {
   private final JavaPlugin plugin;
   private final HuntGameModeManager gameModeManager;

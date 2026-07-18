@@ -24,7 +24,11 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
-/** Handles player interactions and events for the Imposter Hunt gamemode. */
+/**
+ * Handles in-round player interactions for Imposter Hunt: zapper-weapon projectile hits (the
+ * murderer's elimination tool), coin pickups, and other role-specific item interactions. Delegates
+ * elimination/win-condition bookkeeping to {@link ImposterGameManager}.
+ */
 public class ImposterListener implements Listener {
   private final JavaPlugin plugin;
   private final FileConfiguration config;

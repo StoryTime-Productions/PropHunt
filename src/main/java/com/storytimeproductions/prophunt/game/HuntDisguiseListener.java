@@ -7,7 +7,11 @@ import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 
-/** Listener for disguise-related events in the Hunt game. */
+/**
+ * Small event listener for hunter disguise flavor: shift-right-click to play a character-specific
+ * screech via {@link HuntDisguiseManager#playCharacterScreech(Player)}. The bulk of disguise logic
+ * (applying/removing disguises, NPC stands) lives in {@link HuntDisguiseManager} itself.
+ */
 public class HuntDisguiseListener implements Listener {
 
   private final HuntDisguiseManager disguiseManager;

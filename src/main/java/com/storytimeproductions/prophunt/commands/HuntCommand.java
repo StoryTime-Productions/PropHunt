@@ -34,7 +34,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.potion.PotionEffect;
 
-/** Command to open the Hunt game lobby and handle class/map selection. */
+/**
+ * Implements {@code /hunt} and its subcommands: opening the lobby, team/class/map selection
+ * routing, ready-up, admin round control (start/end), and teleporting into the Hunt world. The
+ * largest command in the plugin - it's the main entry point players interact with, and delegates to
+ * {@link HuntLobbyManager}, {@link HuntKitManager}, {@link HuntDisguiseManager}, and {@link
+ * HuntPrepPhaseManager} for the actual state changes.
+ */
 public class HuntCommand implements CommandExecutor {
 
   private final HuntLobbyManager lobbyManager;

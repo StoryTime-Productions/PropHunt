@@ -13,7 +13,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 /**
- * Manages the Hunt game lobby system where players can select teams, classes, maps, and game modes.
+ * Manages the Hunt game lobby system where players select teams, classes, and maps. Owns the
+ * per-player {@link HuntPlayerData} store (the source of truth {@link HuntLobbyListener} and the
+ * hunt-mode strategies read from) and builds/tracks the inventory-GUI menus players interact with.
  */
 public class HuntLobbyManager {
 

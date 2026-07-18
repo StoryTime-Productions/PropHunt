@@ -34,7 +34,14 @@ import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.util.Vector;
 
-/** New implementation of passive abilities for hunter disguises with advanced mechanics. */
+/**
+ * Implements each {@link HunterDisguiseType}'s unique passive ability - Springtrap's Vengeful Echo,
+ * Slenderman's paranoia-charged invisibility, Cryptid's silent blink, and the rest - tracked per
+ * player via idle time (reusing the same still-timer pattern as {@link HuntSpotlightListener}) or
+ * proximity, depending on the ability. Abilities with a windup (Springtrap's slow, Cryptid's blink)
+ * fire a telegraph cue before the actual effect lands, giving a hider a brief chance to react
+ * instead of being hit with no warning - see specs/ambient-tracking-layer.md.
+ */
 public class HuntDisguisePassiveListener implements Listener {
 
   // Delay (ticks) between Springtrap's aura triggering and the slow actually landing, giving

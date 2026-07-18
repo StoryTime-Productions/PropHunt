@@ -11,7 +11,13 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
-/** Handles inventory click events for the Hunt lobby system. */
+/**
+ * Handles clicks in the Hunt lobby's inventory-GUI menus: team selection, hunter/hider class
+ * pickup, and the map-vote menu. Reads which slot was clicked and delegates the actual
+ * team/class/vote bookkeeping to {@link HuntLobbyManager} and hologram updates to {@link
+ * HuntHologramManager}, blocked entirely in Imposter Hunt mode via {@link HuntGameModeManager}
+ * since that mode has no team/class selection.
+ */
 public class HuntLobbyListener implements Listener {
 
   private final HuntLobbyManager lobbyManager;

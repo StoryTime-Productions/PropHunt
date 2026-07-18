@@ -2,7 +2,12 @@ package com.storytimeproductions.prophunt.game;
 
 import java.util.UUID;
 
-/** Represents player data specific to the Imposter Hunt gamemode. */
+/**
+ * Per-player state for Imposter Hunt: their assigned {@link ImposterRole}, coin balance, zapper
+ * charges, alive/dead status, and cooldown timestamps for role-specific actions (investigation,
+ * throwables). Separate from {@link HuntPlayerData} since this mode's roles/economy don't overlap
+ * with Prop Hunt's team/class model.
+ */
 public class ImposterPlayerData {
   private final UUID playerId;
   private ImposterRole role;
