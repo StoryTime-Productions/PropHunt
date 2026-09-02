@@ -15,20 +15,19 @@ Contributions, ideas, or feature requests are always welcome!
 ## What It Does
 
 - **Hunt lobby**: a GUI (`/hunt lobby`) for picking a team (Hunters/Hiders), a class, a map to vote for, and readying up before a round starts.
-- **Prop Hunt**: hiders disguise as blocks/entities and hide; hunters are locked in and blinded for a countdown, then released to hunt. A proximity-based heartbeat system warns hiders when a hunter closes in.
-- **Hunter classes**: Brute, Nimble, Saboteur — distinct speed/damage modifiers, weapons, and a unique utility ability on a cooldown.
-- **Hider classes**: Trickster, Phaser, Cloaker — each with a unique utility ability, plus a shared block-disguise ability.
-- **Imposter Hunt** *(upcoming)*: an alternate gamemode with murderer/sheriff/innocent roles, a coin economy, and zapper weapons instead of team-based hide-and-seek.
-- **NextBot Hunt** *(upcoming)*: an alternate gamemode where every player is a hider.
-- **Maps**: Warehouse, Factory, and Mansion, each with configurable hunter/hider spawn points, voted on during the prep phase.
-- **Disguises**: block and NPC disguises via LibsDisguises, including armor-stand NPC decoys placed around the lobby.
+- **Prop Hunt**: hiders disguise as blocks/entities and hide; hunters are locked in and blinded for a countdown, then released to hunt. A proximity-based heartbeat system warns hiders when a hunter closes in, plus a "recently hurt" tension alarm and an idle-spotlight system that briefly reveals hiders who camp one spot too long.
+- **Hunter classes**: Brute (Shockwave — knocks back and reveals nearby disguised hiders), Nimble (Dash — a speed burst), Saboteur (Scanner — reveals disguised hiders in a radius) — distinct speed/damage modifiers, weapons, and a unique utility ability on a cooldown.
+- **Hider classes**: Trickster (a melee hit locks the hunter in place instead of dealing damage), Phaser (teleports through a wall to the pocket behind it), Cloaker (brief invisibility, auto-restores the prior disguise after) — each with a unique ability, plus a shared block-disguise ability.
+- **Imposter Hunt**: murderer/sheriff/innocent roles, a coin economy (pick up coins, buy a zapper), and zapper-weapon eliminations instead of team-based hide-and-seek.
+- **Maps**: Castle, Mountain, Medieval, Industrial, and Office, each with configurable hunter/hider spawn points, voted on during the prep phase.
+- **Disguises**: block disguises for hiders, plus 6 killer-model NPCs (Springtrap, Herobrine, Slenderman, Cryptid, Jigsaw, Scarecrow) hunters can disguise as via LibsDisguises, each with its own passive ability.
 
 ## Commands
 
 | Command | Description | Permission |
 |---------|-------------|------------|
 | `/hunt` (aliases `huntlobby`, `huntgame`) | Opens the Hunt game lobby / teleports to the Hunt world spawn | `prophunt.hunt` (default: true) |
-| `/huntgamemode` (aliases `huntmode`, `gamemode`) | Manage the Hunt gamemode (Prop Hunt, Imposter Hunt, or Nextbot Hunt) | `prophunt.huntgamemode` (default: op) |
+| `/huntgamemode` (aliases `huntmode`, `gamemode`) | Manage the Hunt gamemode (Prop Hunt or Imposter Hunt) | `prophunt.huntgamemode` (default: op) |
 | `/stdisguise` | Manage entity disguises in the lobby | `prophunt.disguise` (default: op) |
 
 `prophunt.*` grants all of the above permissions (default: false).
@@ -93,8 +92,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). In short: fork the repo, create a featur
 ## Roadmap
 
 - [x] Prop Hunt core loop (lobby, prep phase, hunter/hider classes, disguises)
-- [ ] Imposter Hunt gamemode (framework in place, mode-specific logic pending)
-- [ ] NextBot Hunt gamemode (framework in place, mode-specific logic pending)
+- [x] Imposter Hunt gamemode (roles, coin economy, zapper weapons)
 - [ ] Public playtest release
 
 See the [open issues](https://github.com/StoryTime-Productions/PropHunt/issues) for a full list of proposed features (and known issues).

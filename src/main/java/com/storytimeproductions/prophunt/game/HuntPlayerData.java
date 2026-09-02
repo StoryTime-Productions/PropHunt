@@ -3,8 +3,8 @@ package com.storytimeproductions.prophunt.game;
 import java.util.UUID;
 
 /**
- * Per-player state for Prop Hunt/NextBot Hunt: selected team, hunter/hider class, preferred map and
- * gamemode, ready status, and their currently-applied disguise (display name and skin). Kept in
+ * Per-player state for Prop Hunt/Imposter Hunt: selected team, hunter/hider class, preferred map
+ * and gamemode, ready status, and their currently-applied disguise (display name and skin). Kept in
  * {@link HuntLobbyManager} and intentionally persisted across rounds - a returning player keeps
  * their team/class/disguise instead of reselecting every round.
  */

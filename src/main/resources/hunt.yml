@@ -151,6 +151,12 @@ hunt:
         y: 67.0
         z: 197.0
 
+  # Round duration formula - base time plus a scaling amount per hider, locked in
+  # against the roster size at round start (not re-evaluated as hiders are eliminated).
+  game-duration:
+    base-seconds: 90
+    per-hider-seconds: 30
+
   # Prep phase configuration
   prep-phase:
     # Location for the "START GAME" hologram
@@ -190,9 +196,6 @@ hunt:
 
     # Countdown settings
     countdown-duration: 5 # seconds
-
-    # Game duration (in minutes)
-    game-duration: 5
 
     # Hunter lock-in duration (in seconds)
     hunter-lock-duration: 30

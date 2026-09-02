@@ -393,8 +393,6 @@ public class HuntHologramManager {
         return NamedTextColor.GREEN;
       case IMPOSTER_HUNT:
         return NamedTextColor.RED;
-      case NEXTBOT_HUNT:
-        return NamedTextColor.LIGHT_PURPLE;
       default:
         return NamedTextColor.WHITE;
     }

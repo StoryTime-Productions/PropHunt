@@ -340,11 +340,6 @@ public class HuntLobbyListener implements Listener {
         player.sendMessage(Component.text("Selected mode: Imposter Hunt", NamedTextColor.GREEN));
         lobbyManager.openMainMenu(player);
       }
-      case 8 -> {
-        lobbyManager.handleGameModeSelection(player, HuntGameMode.NEXTBOT_HUNT);
-        // Message is handled in handleGameModeSelection for NextBots
-        lobbyManager.openMainMenu(player);
-      }
       case 13 -> lobbyManager.openMainMenu(player); // Back button
       default -> {
         // No action
