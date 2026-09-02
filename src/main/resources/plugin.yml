@@ -13,8 +13,8 @@ commands:
     permission: prophunt.hunt
     permission-message: You don't have permission to use this command.
   huntgamemode:
-    description: Manage the Hunt gamemode (Prop Hunt, Imposter Hunt, or Nextbot Hunt)
-    usage: /huntgamemode [prophunt|imposterhunt|nextbothunt]
+    description: Manage the Hunt gamemode (Prop Hunt or Imposter Hunt)
+    usage: /huntgamemode [prophunt|imposterhunt]
     aliases: [huntmode, gamemode]
   stdisguise:
     description: Manage entity disguises in the lobby

@@ -349,76 +349,92 @@ public class HuntUtilityListener implements Listener {
   private void updateAbilityStatusActionBars() {
     boolean debug = plugin.getConfig().getBoolean("debug", false);
     for (Player player : Bukkit.getOnlinePlayers()) {
-      if (!isPlayerInHuntWorld(player)) {
-        continue;
-      }
-
-      boolean hunter = isPlayerHunter(player);
-      boolean hider = hiderUtilityListener != null && isPlayerHider(player);
-      List<AbilityStatus> statuses;
-      if (hunter) {
-        statuses = getHunterAbilityStatuses(player);
-      } else if (hider) {
-        statuses = hiderUtilityListener.getHiderAbilityStatuses(player);
-        if (spotlightListener != null) {
-          Integer idleCountdown = spotlightListener.getIdleCountdownSeconds(player.getUniqueId());
-          if (idleCountdown != null) {
-            int minIdleSeconds = config.getInt("hunt.spotlight.min-idle-seconds", 12);
-            statuses.add(
-                new AbilityStatus("EXPOSED IN", true, idleCountdown, minIdleSeconds, true));
-          }
-        }
-      } else {
-        statuses = List.of();
-      }
-      if (debug) {
+      try {
+        updatePlayerAbilityStatusActionBar(player, debug);
+      } catch (Exception e) {
+        // This task is shared by every online player - an uncaught exception for one player
+        // (e.g. a stale/edge-case spectator state) would otherwise kill the whole repeating
+        // task and silently stop the action bar for everyone for the rest of the round.
         plugin
             .getLogger()
-            .info(
-                "[DEBUG] ability-bar "
+            .warning(
+                "Failed to update ability status action bar for "
                     + player.getName()
-                    + " hunter="
-                    + hunter
-                    + " hider="
-                    + hider
-                    + " statuses="
-                    + statuses.size());
+                    + ": "
+                    + e.getMessage());
       }
-      // Merge in the hider's heartbeat proximity warning (if any) as the leading segment,
-      // instead of the two systems fighting over the action bar slot independently.
-      Component heartbeatMessage =
-          (hider && prepPhaseManager != null)
-              ? prepPhaseManager.getHeartbeatMessage(player.getUniqueId())
-              : null;
-
-      if (statuses.isEmpty() && heartbeatMessage == null) {
-        continue;
-      }
-
-      Map<String, Boolean> playerPrevious =
-          previousOnCooldown.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>());
-      Component bar = Component.empty();
-      if (heartbeatMessage != null) {
-        bar = bar.append(heartbeatMessage);
-        if (!statuses.isEmpty()) {
-          bar = bar.append(Component.text("   "));
-        }
-      }
-      for (int i = 0; i < statuses.size(); i++) {
-        AbilityStatus status = statuses.get(i);
-        Boolean wasOnCooldown = playerPrevious.get(status.label());
-        if (Boolean.TRUE.equals(wasOnCooldown) && !status.onCooldown()) {
-          player.playSound(player.getLocation(), Sound.BLOCK_CHAIN_BREAK, 1.0f, 1.0f);
-        }
-        playerPrevious.put(status.label(), status.onCooldown());
-
-        if (i > 0) {
-          bar = bar.append(Component.text("   "));
-        }
-        bar = bar.append(status.render());
-      }
-      player.sendActionBar(bar);
     }
+  }
+
+  private void updatePlayerAbilityStatusActionBar(Player player, boolean debug) {
+    if (!isPlayerInHuntWorld(player)) {
+      return;
+    }
+
+    boolean hunter = isPlayerHunter(player);
+    boolean hider = hiderUtilityListener != null && isPlayerHider(player);
+    List<AbilityStatus> statuses;
+    if (hunter) {
+      statuses = getHunterAbilityStatuses(player);
+    } else if (hider) {
+      statuses = hiderUtilityListener.getHiderAbilityStatuses(player);
+      if (spotlightListener != null) {
+        Integer idleCountdown = spotlightListener.getIdleCountdownSeconds(player.getUniqueId());
+        if (idleCountdown != null) {
+          int minIdleSeconds = config.getInt("hunt.spotlight.min-idle-seconds", 12);
+          statuses.add(new AbilityStatus("EXPOSED IN", true, idleCountdown, minIdleSeconds, true));
+        }
+      }
+    } else {
+      statuses = List.of();
+    }
+    if (debug) {
+      plugin
+          .getLogger()
+          .info(
+              "[DEBUG] ability-bar "
+                  + player.getName()
+                  + " hunter="
+                  + hunter
+                  + " hider="
+                  + hider
+                  + " statuses="
+                  + statuses.size());
+    }
+    // Merge in the hider's heartbeat proximity warning (if any) as the leading segment,
+    // instead of the two systems fighting over the action bar slot independently.
+    Component heartbeatMessage =
+        (hider && prepPhaseManager != null)
+            ? prepPhaseManager.getHeartbeatMessage(player.getUniqueId())
+            : null;
+
+    if (statuses.isEmpty() && heartbeatMessage == null) {
+      return;
+    }
+
+    Map<String, Boolean> playerPrevious =
+        previousOnCooldown.computeIfAbsent(player.getUniqueId(), k -> new HashMap<>());
+    Component bar = Component.empty();
+    if (heartbeatMessage != null) {
+      bar = bar.append(heartbeatMessage);
+      if (!statuses.isEmpty()) {
+        bar = bar.append(Component.text("   "));
+      }
+    }
+    for (int i = 0; i < statuses.size(); i++) {
+      AbilityStatus status = statuses.get(i);
+      Boolean wasOnCooldown = playerPrevious.get(status.label());
+      if (Boolean.TRUE.equals(wasOnCooldown) && !status.onCooldown()) {
+        player.playSound(player.getLocation(), Sound.BLOCK_CHAIN_BREAK, 1.0f, 1.0f);
+      }
+      playerPrevious.put(status.label(), status.onCooldown());
+
+      if (i > 0) {
+        bar = bar.append(Component.text("   "));
+      }
+      bar = bar.append(status.render());
+    }
+    player.sendActionBar(bar);
   }
 
   /**

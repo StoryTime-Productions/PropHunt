@@ -39,9 +39,7 @@ public class HuntLobbyManager {
 
     // Team Selection (slot 10)
     String teamDescription;
-    if (data.getPreferredGameMode() == HuntGameMode.NEXTBOT_HUNT) {
-      teamDescription = "NextBot Hunt: All players are hiders";
-    } else if (data.getSelectedTeam() != null) {
+    if (data.getSelectedTeam() != null) {
       teamDescription = "Current: " + data.getSelectedTeam().getDisplayName();
     } else {
       teamDescription = "Click to select your team";
@@ -96,18 +94,6 @@ public class HuntLobbyManager {
   /** Opens the team selection menu. */
   public void openTeamSelectionMenu(Player player) {
     HuntPlayerData data = getOrCreatePlayerData(player.getUniqueId());
-
-    // Check if NextBots mode - only hiders allowed
-    if (data.getPreferredGameMode() == HuntGameMode.NEXTBOT_HUNT) {
-      // Automatically assign to hiders and return to main menu
-      data.setSelectedTeam(HuntTeam.HIDERS);
-      // Clear any hunter class selection since they're now a hider
-      data.setSelectedHunterClass(null);
-      player.sendMessage(
-          Component.text("In NextBot Hunt, all players are hiders!", NamedTextColor.YELLOW));
-      openMainMenu(player);
-      return;
-    }
 
     Inventory menu = Bukkit.createInventory(null, 9, Component.text("Select Team"));
 
@@ -380,8 +366,7 @@ public class HuntLobbyManager {
   }
 
   /**
-   * Handles game mode selection and enforces NextBots rules. If NextBots is selected, all players
-   * are automatically assigned to hiders.
+   * Handles game mode selection.
    *
    * @param player The player selecting the game mode
    * @param gameMode The selected game mode
@@ -389,26 +374,5 @@ public class HuntLobbyManager {
   public void handleGameModeSelection(Player player, HuntGameMode gameMode) {
     HuntPlayerData data = getOrCreatePlayerData(player.getUniqueId());
     data.setPreferredGameMode(gameMode);
-
-    if (gameMode == HuntGameMode.NEXTBOT_HUNT) {
-      // Convert all hunters to hiders for NextBots mode
-      reassignHuntersToHiders();
-      player.sendMessage(
-          Component.text(
-              "NextBot Hunt selected! All players are now hiders.", NamedTextColor.YELLOW));
-    }
-  }
-
-  /**
-   * Reassigns all hunters to hiders and clears their hunter class selections. Used when switching
-   * to NextBots game mode.
-   */
-  private void reassignHuntersToHiders() {
-    for (HuntPlayerData data : playerData.values()) {
-      if (data.getSelectedTeam() == HuntTeam.HUNTERS) {
-        data.setSelectedTeam(HuntTeam.HIDERS);
-        data.setSelectedHunterClass(null); // Clear hunter class since they're now hiders
-      }
-    }
   }
 }

@@ -23,6 +23,7 @@ import me.libraryaddict.disguise.DisguiseAPI;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.command.Command;
@@ -755,6 +756,9 @@ public class HuntCommand implements CommandExecutor {
 
       clearPlayerForHuntLobby(player);
       Location spawnLocation = new Location(world, x, y, z, yaw, pitch);
+      // Adventure mode was never enforced on lobby entry - a player joining fresh (or still
+      // in whatever mode they were in before) would stay in Survival/Creative in the lobby.
+      player.setGameMode(GameMode.ADVENTURE);
       player.teleport(spawnLocation);
       // Delay to override any world manager (e.g. Multiverse) position restoration on world change
       Bukkit.getScheduler()

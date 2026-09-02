@@ -1,5 +1,5 @@
 /**
- * Core game logic for PropHunt's three modes - Prop Hunt, Imposter Hunt, and NextBot Hunt.
+ * Core game logic for PropHunt's two modes - Prop Hunt and Imposter Hunt.
  *
  * <p>Broadly organized into a few groups of classes:
  *
@@ -13,8 +13,7 @@
  *       com.storytimeproductions.prophunt.game.HuntGameModeManager} and the {@link
  *       com.storytimeproductions.prophunt.game.HuntGameModeStrategy} implementations ({@link
  *       com.storytimeproductions.prophunt.game.PropHuntStrategy}, {@link
- *       com.storytimeproductions.prophunt.game.ImposterHuntStrategy}, {@link
- *       com.storytimeproductions.prophunt.game.NextbotHuntStrategy}) let the same lobby/prep flow
+ *       com.storytimeproductions.prophunt.game.ImposterHuntStrategy}) let the same lobby/prep flow
  *       support multiple rule sets.
  *   <li><b>Abilities</b>: {@link com.storytimeproductions.prophunt.game.HiderUtilityListener} and
  *       {@link com.storytimeproductions.prophunt.game.HuntUtilityListener} implement each hider and

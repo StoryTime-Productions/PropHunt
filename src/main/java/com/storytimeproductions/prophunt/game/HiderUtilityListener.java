@@ -768,7 +768,11 @@ public class HiderUtilityListener implements Listener {
                       + (finalOriginalBlockData != null));
         }
       }
-    }.runTaskLater(plugin, 200L); // 10 seconds
+      // Restore delay must match the actual configured invisibility duration - this was
+      // previously hardcoded to 200 ticks (10s) regardless of cloaker-duration-seconds
+      // (default 6s), leaving the player exposed and undisguised for several seconds
+      // after invisibility wore off but before the disguise came back.
+    }.runTaskLater(plugin, durationSeconds * 20L);
 
     event.setCancelled(true);
   }

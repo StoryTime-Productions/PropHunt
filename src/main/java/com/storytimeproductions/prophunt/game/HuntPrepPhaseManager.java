@@ -561,12 +561,6 @@ public class HuntPrepPhaseManager {
         // Initialize Imposter Hunt - start the game with all participants
         startImposterHunt();
         break;
-      case NEXTBOT_HUNT:
-        // TODO: Initialize NextBot Hunt specific logic
-        plugin
-            .getLogger()
-            .info("Starting NextBot Hunt mode - additional setup will be implemented");
-        break;
       default:
         plugin.getLogger().warning("Unknown game mode: " + currentMode);
         break;
@@ -721,7 +715,9 @@ public class HuntPrepPhaseManager {
                     ((Number) spawnData.get("yaw")).floatValue(),
                     ((Number) spawnData.get("pitch")).floatValue());
 
-            // Teleport hider without removing kit
+            // Teleport hider without removing kit. Adventure mode was previously only
+            // enforced on the round-end return to lobby, never here at round start.
+            player.setGameMode(GameMode.ADVENTURE);
             player.teleport(hiderSpawn);
             // Re-teleport a couple ticks later to override any world manager (e.g. Multiverse)
             // restoring the player's last position in this world - only observable on repeat
@@ -1044,6 +1040,11 @@ public class HuntPrepPhaseManager {
           if (data != null && data.getSelectedHunterClass() != null) {
             // Only apply abilities if still not in spectator mode
             if (hunter.getGameMode() != GameMode.SPECTATOR) {
+              // Adventure mode was previously only enforced on the round-end return to
+              // lobby, never here at round start - a hunter left in Survival/Creative
+              // (e.g. after admin testing) could break blocks/pick up items during the
+              // round, which is what "inventory not resetting" traced back to.
+              hunter.setGameMode(GameMode.ADVENTURE);
               kitManager.applyHunterAbilities(hunter, data.getSelectedHunterClass());
               plugin
                   .getLogger()
@@ -1098,19 +1099,33 @@ public class HuntPrepPhaseManager {
     gameStarting = false;
     gameActive = true;
 
-    int gameDuration = config.getInt("hunt.prep-phase.game-duration", 5); // minutes
-
-    plugin
-        .getLogger()
-        .info("Starting Hunt game timer for " + gameDuration + " minutes - Game is now active!");
-
     // Create copies of participant lists to avoid ConcurrentModificationException
     Map<UUID, HuntTeam> participantsCopy = new HashMap<>(gameParticipants);
 
+    // Duration formula: base 90s + 30s per hider, locked in against the roster size at round
+    // start (not re-evaluated as hiders are eliminated) - replaces the old flat
+    // hunt.prep-phase.game-duration minutes setting, which didn't scale with lobby size.
+    long hiderCount =
+        participantsCopy.values().stream().filter(team -> team == HuntTeam.HIDERS).count();
+    int baseDurationSeconds = config.getInt("hunt.game-duration.base-seconds", 90);
+    int perHiderSeconds = config.getInt("hunt.game-duration.per-hider-seconds", 30);
+    int totalDurationSeconds = baseDurationSeconds + (int) hiderCount * perHiderSeconds;
+
+    plugin
+        .getLogger()
+        .info(
+            "Starting Hunt game timer for "
+                + totalDurationSeconds
+                + " seconds ("
+                + hiderCount
+                + " hiders) - Game is now active!");
+
     // Create boss bar for game timer
+    String initialTimeDisplay =
+        String.format("%d:%02d", totalDurationSeconds / 60, totalDurationSeconds % 60);
     gameTimerBar =
         Bukkit.createBossBar(
-            "Game Time Remaining: " + gameDuration + ":00", BarColor.GREEN, BarStyle.SOLID);
+            "Game Time Remaining: " + initialTimeDisplay, BarColor.GREEN, BarStyle.SOLID);
 
     // Add all game participants to boss bar
     for (UUID playerId : participantsCopy.keySet()) {
@@ -1125,7 +1140,7 @@ public class HuntPrepPhaseManager {
     // Start countdown timer
     gameTimer =
         new BukkitRunnable() {
-          int timeLeft = gameDuration * 60; // Convert to seconds
+          int timeLeft = totalDurationSeconds;
 
           @Override
           public void run() {
@@ -1150,7 +1165,7 @@ public class HuntPrepPhaseManager {
                     .count();
 
             gameTimerBar.setTitle("Time: " + timeDisplay + " | Hiders: " + hidersAlive);
-            gameTimerBar.setProgress((double) timeLeft / (gameDuration * 60));
+            gameTimerBar.setProgress((double) timeLeft / totalDurationSeconds);
 
             // Change color based on time remaining
             if (timeLeft <= 60) {

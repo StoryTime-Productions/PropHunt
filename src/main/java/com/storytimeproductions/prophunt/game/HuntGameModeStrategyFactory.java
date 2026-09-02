@@ -16,8 +16,6 @@ public class HuntGameModeStrategyFactory {
         return new PropHuntStrategy();
       case IMPOSTER_HUNT:
         return new ImposterHuntStrategy();
-      case NEXTBOT_HUNT:
-        return new NextbotHuntStrategy();
       default:
         throw new IllegalArgumentException("Unsupported gamemode: " + gameMode);
     }
