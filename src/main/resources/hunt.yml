@@ -4,88 +4,103 @@ hunt:
 
   # Spawn location where players are teleported when using /hunt
   spawn:
-    x: 100.0
-    y: 65.0
-    z: 200.0
-    yaw: 0.0
-    pitch: 0.0
+    x: 0
+    y: 1
+    z: 0
+    yaw: 180
+    pitch: 3.039
 
-  # Disguise locations where armor stands with player disguises are placed
+  # Disguise locations where armor stands with player disguises are placed.
+  # skin-value/skin-signature are the raw Mojang texture property pair (base64 value +
+  # signature) so HuntDisguiseNpcManager can apply the skin directly instead of doing a
+  # live Mojang API lookup by name every time.
   disguise-locations:
     # Each location has a unique identifier
     location1:
       # World coordinates
-      x: 100.5
-      y: 65.0
-      z: 200.5
+      x: -18.5
+      y: 0.0
+      z: 12.5
       # Rotation (in degrees)
       # yaw: left/right rotation (0=north, 90=east, 180=south, 270=west)
       # pitch: up/down rotation (-90=looking up, 0=level, 90=looking down)
-      yaw: 0.0
-      pitch: 0.0
+      yaw: 237.771
+      pitch: 0.598
       # Player skin to disguise the armor stand as (actual player name for skin)
-      player-skin: "Springtrap"
+      player-skin: "Vaca_Galo"
       # Display name to show above the armor stand
       display-name: "Springtrap"
       # Scale of the armor stand (default 1.3)
       scale: 1.3
       # Whether this location is enabled
       enabled: true
+      skin-value: "ewogICJ0aW1lc3RhbXAiIDogMTc3OTY2Nzg1ODEwNCwKICAicHJvZmlsZUlkIiA6ICI1NWU0ZmQyMjQxNTE0ZmFhYjFmNTlhMjA5ZjUxNGRjZSIsCiAgInByb2ZpbGVOYW1lIiA6ICJWYWNhX0dhbG8iLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvY2U1MjQ3NmFmOTE2YWI0MzY3OTZiNjYwNWZkMWJlOGMwZTMzMTMxMzUwNTBkZGQxOThiYTU1N2Y0NDEyYzJmMyIKICAgIH0KICB9Cn0="
+      skin-signature: "Sv8F6zaN5Ijjx+QEtDWj+Ovq1e9t+DiYhs+BY3AJg9X/gdaj6klM/ZQRRtkv+9LVJ09czN2VHJDyuvUH2FB3iPjk1BPpmKy+cesZmxBhh1VHvvulA/YaS7gYSwzgOPrg9tFNpXM97IFGWuqHu8d6jwDydXy9cRMS3jqkHPjezl2tx27nhr5y/vqHLPEI+ccMBRykRmnRmEAgDgJA6wLbB0KCnRakJfHj3cuzX/OthqwFcuquH0YmomIu37jbP3Z1FK5RzW4ugNwg0wuF0jJasUxKDl9FAwtvK9dq5BNJQ/BaHuGjYldHwUASJVnlk6aVaGbhcifDbPSBtBOedpjduZIC4NtLHoVAyiVFYPOTQT70OQ8S/lB2XJ1tW8+cd/jn1mLKYcWvMCC5gNj3OVsOH/AfnM35Q06eR/LHH2ASVDT7cdi66aPvHBUPzLP0zLVsREvTL8HuehRFY4xa6U8Au8dGPUvoy98ywZFEdNWGrN3KbU8t13lJvdp+cbN/kN2I4dM3ndxx5HuSMG+vJhU7Vg0zSXQbudkKGNeGA1gJ/MILWBRT0Ivpnrhq/8ZvcO/aul/1zRkVMLzTmwD9SM+0tNPuZe1efu5PyIg3AU3/psD/311cQGVBNXoeOs6vTyB6gzbKjEJiS97fC3DcK1s5eBJly6XCqsFY05DX/tcPkJQ="
 
     location2:
-      x: 105.5
-      y: 65.0
-      z: 205.5
-      yaw: 90.0
-      pitch: 0.0
-      player-skin: "Herobrine"
+      x: -20.5
+      y: 0
+      z: 11.3
+      yaw: 242.055
+      pitch: 0.506
+      player-skin: "Pepsiman_Samy"
       display-name: "Herobrine"
       scale: 1.3
       enabled: true
+      skin-value: "ewogICJ0aW1lc3RhbXAiIDogMTc3OTY2NzM5MTU4NCwKICAicHJvZmlsZUlkIiA6ICJkMzc3ZmRjNDA4MzU0NGFjYTFhOGVkZDJlYjRkMTY2MSIsCiAgInByb2ZpbGVOYW1lIiA6ICJQZXBzaW1hbl9TYW15IiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzE1ZmE0MmNmZjgyODIwNzE5ZWE4NzFjOTFkNGVkNjgxOGRkOWQzNGM5ODRkNTQwNzNiNWU5ZjljOGU1ODYwNTMiCiAgICB9CiAgfQp9"
+      skin-signature: "U9Tf2W4xPhBWEb0DF3u5jA603sghkOSID7L+Ugp/Ln/NEFlbX7fsaayEuvC2ZRtv4UADIfZGn956nnE8f/6qjJjwuzquju0qq06MHVHgibf8/9Q1bye8Zq2f9nQyl6+SbXzHV1fjfnIFZJTL0/W0VfsRvb+D7onSp7A2MBt0gQXML0TeyMA/B+lwreYkdKgMGgPcq1a8XDKgjpVgSPx1H2iyjGjU492o7VZckk0bSvLaXKWtkAw4K2t6OX/OPCqWTcN7AzBKj23282fjY7KhE9cednZr/v5OAv6AUwQO00P7WXqRDmyXOJzvTSWJmexQ9E54kjWuQkp81/CTW4sEysqr5kmyYXaFXy32B4ni0KNU2TnN5mYCxgdbeNcfeO4ZiJ10bXW9p6r8qaqvfdeVoetgGjO2UcFjWlM5zHcoF7E5JJqKWvIghs4xZ2lndcj7/XQ2mKVjZg8Tg/mpIDmvuBhLWktGNbBnfq2bI2XG2DbZ1NBlp6CcCutIUVsIW1Zlg0/MTYR/ghB0EJw3zZaV+S9u1QupXkIqG3FKmoax2ZrSAFFhPtLB/C716yRqn8/InmJ22utKNeelD5sEyprji21CwCXH56MJgRchCTGAXIg53NaO1gsItfzHVZC6h07mYL6wica/sWQJFaMKNPD+lMXdcKT7cBVFmmQr0l2OOtY="
 
     location3:
-      x: 110.5
-      y: 65.0
-      z: 210.5
-      yaw: 180.0
-      pitch: -10
-      player-skin: "FoxyTheFierce"
+      x: -19.5
+      y: 0
+      z: 9.5
+      yaw: 245.509
+      pitch: 0.506
+      player-skin: "LadyCaoimhe"
       display-name: "Slenderman"
       scale: 1.3
       enabled: true
+      skin-value: "ewogICJ0aW1lc3RhbXAiIDogMTc3OTY2NzM5MTg0NCwKICAicHJvZmlsZUlkIiA6ICJkZjRkZmMzM2YxZGY0YTY3YTQ1NTRiNDczZGVhYTc4NSIsCiAgInByb2ZpbGVOYW1lIiA6ICJMYWR5Q2FvaW1oZSIsCiAgInNpZ25hdHVyZVJlcXVpcmVkIiA6IHRydWUsCiAgInRleHR1cmVzIiA6IHsKICAgICJTS0lOIiA6IHsKICAgICAgInVybCIgOiAiaHR0cDovL3RleHR1cmVzLm1pbmVjcmFmdC5uZXQvdGV4dHVyZS85ZjgwNzQ2YmJlNmVlZWZjNDAwMTg5OGQwZDhlZmYyYWFmOWIyMTMyNTI5MGMwYzlkZTNhM2RhYmMzZDFkZjdiIiwKICAgICAgIm1ldGFkYXRhIiA6IHsKICAgICAgICAibW9kZWwiIDogInNsaW0iCiAgICAgIH0KICAgIH0KICB9Cn0="
+      skin-signature: "BJhcy2Z/0d204/2rjxczz5xJx/Tq/n4DZF9/dtraQc6tlxGr5jxE6TUg0GdHyUbb3Iqje6EiJm9lpfN4vExcu2wZ53NnsmOX2jPOuVxJHQtpUGsWDxALYYkbqcleOo6Q0vU6gWR8ONxfifX1TYHvBz7dkCKNuXAWfsef4B07cXCLsfr+PBvg0/RsvR9EsW61+UD0qSNMR7jIvjQ1e1gLyDmVvBrxstyf5McJ3IR/KQerEqC1ksUbIaq7cyYd6V8Bu8g4uu7DQOVms15c2hblh8NKl02dTBP9yoFhIXT1/Kp8H8J5shbc87JX2YFHcDqc6142qv7Qe0jJwTYuaMaOKRH6wsECN8rBM6wQ8OIxeZulAdH2ZgbUDMUNO9wPvwh1v+HXz8Lh/Tsn6wHpveO9K9YOg2De4hGAMadWhY0/l3OYY4hAZx1j51k9JXbDXm8BaaaKGjjSYnL7ajOSyUxnsWvNUxt12y17+yiv6szwmtQX0nPxcl0if1SccaQ65cAT/qUi81wPYKkmMC0Mhxa64n1NqkViVOmkZYsLLMxS4e/AA1Bp7HrJUNGL/FH+QU3rtrxgp1t+wxJqMXZB9bOuy5vg0eS8J15fBk0LTVNeIQO5MmJkbMgQzS0J3b/UBX5QWEMMM5hoAm6dhbIdV4Htsei6EUEFDtcifztKUvEIhbs="
 
     location4:
-      x: 115.5
-      y: 65.0
-      z: 215.5
-      yaw: 270.0
-      pitch: 0.0
-      player-skin: "Cryptid"
+      x: -19.5
+      y: 0
+      z: -8.5
+      yaw: 293.603
+      pitch: 0.782
+      player-skin: "SkibidiMxchy"
       display-name: "Cryptid"
       scale: 1.3
       enabled: true
+      skin-value: "ewogICJ0aW1lc3RhbXAiIDogMTc3OTY2NzM5MzI4MywKICAicHJvZmlsZUlkIiA6ICI1YjQ3YzAzZDMwNGU0MTBhYjE3YTk4ZWRlNjAxM2RjOCIsCiAgInByb2ZpbGVOYW1lIiA6ICJTa2liaWRpTXhjaHkiLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODkzYjgyNDJiNmU2OTY4YzVlY2JkMTUwM2Q5OTgyMTg3YTg1NGZjZmVlYjU1Zjc3ZGI1M2EwMjI4Y2JlNGM0NiIKICAgIH0KICB9Cn0="
+      skin-signature: "rcJnzinHBE74olZnOmEmC++7iZ1MDGy2hkRRQdN1p6aDl6XTlXlN5oW2Gt4Ncn6QNF7iq5GFNSWrClxQWdQVrcPsOYQ/TpAtO2S4JPaVSMdFaQOkM5P2/ruw/PcXdMImQlhqJIVvFySdMULoPrj1/6yIQqKRP/FdtkHxFKIbP+jC4LZDUcKvLnesPwwqKfoGaExiKQKOvln9fca01uoEpgK7/4qRqs1n/JSPsbS4CWT5Z6dZRdnJDHp51h8I1/LCgmnlbymDbcuwUBZePfNuLbBaSBlvdQv8SoWbVfn2lS1KWoFIf6waQrI85jYKMOtJI1RcFXEup7tZydNvAzd4Mi4gO6Fs3uAZ4VMlJnzP1uJs85O+/7IfuhVkDeuCUBRnh9lLl4PvTx4eVDGPF8ceafit80FULCBADYNv7hpZXjx6g+n+6Otm6BISbtB7CPHO07Rf3dNrJk1rK8z/8Ffb5f09noqMVV8qcIq9g2mRZ+vyTWZ1RXcl0fn/XJZWaErhMxQXX26EiLeFMVsKUYHWIsbqcXFFSn7vYhX3wesiQrotxq/4c2QJZ8m7fsiWV1iDX3V3iN4lGmJuRBiUMXqukjblnNPFFjd5+iMJvZieLy6siytravfEBjubQjuoNZWe7EzX5T+vc3NMQLiRC2lRFJlZ93T7kmF3Sbo2Wm8GbIk="
 
     location5:
-      x: 120.5
-      y: 65.0
-      z: 220.5
-      yaw: 45.0
-      pitch: 0.0
-      player-skin: "Jigsaw"
-      display-name: "Jigsaw"
-      scale: 1.3
-      enabled: true
-
-    location6:
-      x: 125.5
-      y: 65.0
-      z: 225.5
-      yaw: 135.0
-      pitch: 0.0
-      player-skin: "Scarecrow"
+      x: -20.5
+      y: 0
+      z: -10.5
+      yaw: 296.736
+      pitch: -0.876
+      player-skin: "AquariusW"
       display-name: "Scarecrow"
       scale: 1.3
       enabled: true
+      skin-value: "ewogICJ0aW1lc3RhbXAiIDogMTc3OTY2NzM5Mjg4NCwKICAicHJvZmlsZUlkIiA6ICJhZTBhY2ZkZTI2NjE0YmFmOGQyNTE2NGFhNjQ0NzljZiIsCiAgInByb2ZpbGVOYW1lIiA6ICJBcXVhcml1c1ciLAogICJzaWduYXR1cmVSZXF1aXJlZCIgOiB0cnVlLAogICJ0ZXh0dXJlcyIgOiB7CiAgICAiU0tJTiIgOiB7CiAgICAgICJ1cmwiIDogImh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvODNhYTA1ZTNhMDExZWQ0OTgzNWM0N2Y4YWRkMzU0ODY3OTQ4OWIxY2Y2NjIwODRkZmJkNjg1NzM0YmM3YzgwMCIKICAgIH0KICB9Cn0="
+      skin-signature: "eL483JXgHSDAarGXJKGo8m8R55P0+uohyzKCADTMnSM1NpkrwKinLVhuOHFrStE6rlMBks/xZgmxmnsZzBdT7jEzCGWD/cAVqwnTycZWE+r66gHksqOt8N7ukI17LJRew3lPeLnX+gTiHQ74tRo+63JIid8yv5St28hkJ4GC/JXWZG5BBpqX0QnTstFQ89Pg+hiG959rZyjjBvaaNlUSowxGhsYcFtaxXf8OLeUL0CH2LSmsbfLTBPwtyqoFxlkV/35AydEsSE8jMbw0qes/F5wV0CtDdp1H+1z+Niyk5niibJfuIue8bABN9pb77WOwF/DhkO7j1xYWcNEyTxqbO7SzpWvz40W0PpTyAi0uw8yodcU7ukl5a+Fkqei36fDMwL4jzlcBWkRsmiOqWPzpEbdmEN7WDSf1sJFsbCx6UwGoEDJ1o8eQZZIX8XBGe/5lFhQM6YYvVsDYR62qlHWtRbXMepNMzvdH3hJWQDEnFnb3yioqABHpJ8vEsqvZFb2tihzWOjlqzKUAaslv0MNvUlk+09MeCKYR5btTG+XbtFuy6jJXDt78A7g5dlv5CKv2ohqiQZGkb9iN8ag1Bybc4UEQmmNQG5c5w0euAp4SRIpaDdZ0kCHm111nKV6nKav0pQ6h0buxZTcl50ji0DhQI7+nWUw4TdPKsmz+H6oP8GQ="
+
+    location6:
+      x: -18.5
+      y: 0
+      z: -11.3
+      yaw: 300.882
+      pitch: 0.506
+      player-skin: "Coosmin"
+      display-name: "Jigsaw"
+      scale: 1.3
+      enabled: true
+      skin-value: "ewogICJ0aW1lc3RhbXAiIDogMTc3OTY1OTU2ODY5NywKICAicHJvZmlsZUlkIiA6ICJiMDZkMDVkOTAwM2I0N2I0OGJiOTI5MGRjYzliYTgzZCIsCiAgInByb2ZpbGVOYW1lIiA6ICJDb29zbWluIiwKICAic2lnbmF0dXJlUmVxdWlyZWQiIDogdHJ1ZSwKICAidGV4dHVyZXMiIDogewogICAgIlNLSU4iIDogewogICAgICAidXJsIiA6ICJodHRwOi8vdGV4dHVyZXMubWluZWNyYWZ0Lm5ldC90ZXh0dXJlLzgwOGY3MGFlZDFiYzJkNGU5ZjcyYmFhNzFhNDQ5YTE4YWE1MmI2OWMzMzVkY2U4MjFhODdkZTUyZjFlODVjMjAiCiAgICB9CiAgfQp9"
+      skin-signature: "ugA09JrWSwFhYRf4R9hTrFzzLQxZ7//JYI/pZH65tsdRwRpgbIVF5Si8vxjWsLvwJ4FvPcRlbTdAaacXwwM8EUa8r797HW5e+FfGV4L0GISzZu+oNn+kx445YiLMP2yNZeGeNJ8lWtxsgDi6Hz4XPFJz7N4rOXEjXkuzksRRh5s5B4Q4RCFiGmn4jk5FLazhNjILltVrT0T4RH8RZs3yudZkfaPgvJgOOvRZ+/l1RNXQztJ3D0EzUXULcIWNd976c/vW4UmKlizE4yhljma/sYygdlBd+629m00IgvPLnjtJ0lGv/lpqmL2ePvpNkL/7MnJwQL80GTmBkDnpna74aJk7QVQ5slq35r/WwOsmpHNkp8RvrPYlPcec54A5F+6EI5aRrmE77ZnWK3rePR3L8je5yT/Lu71PS78L5TyoRnWzml2Xj2mj7O396uLtFcuqGYZTMMB2CXUuIw7t1ztOy4CEJPiMu1IsjFStx1DxBe1bJ56w+G8zJ/ZaTX4z3nERMmPur9LnfCi4rr3+s+nMvwNsLOMrYQd2y7t8AjTxdHkajJDz5fIsiRMHbd+DRsRK3ObeGL8QBCcF98vuXcoWoQcQx2gFUE7Y+b7Flt9wq+1CqjxHIvkbgLqNzMIoGtg8DzRyxwtklGPmUTKEF0w5yM44lZIdHdSDsFmVejux0TI="
 
   # Disguise settings
   disguise:
@@ -96,7 +111,7 @@ hunt:
     # Whether to show the display name above the disguised player (true = show display name, false = hide name)
     retain-username: true
     # Cooldown between disguise attempts (in seconds)
-    cooldown: 3
+    cooldown: 5
     # Distance (in blocks) within which a lobby disguise NPC turns to face a nearby player.
     # Purely visual and per-player (packet-based) — 0 disables the effect.
     stare-distance: 6.0
@@ -117,39 +132,39 @@ hunt:
   holograms:
     # Game mode selection display
     gamemode-selection:
-      x: 100.0
-      y: 70.0
-      z: 200.0
+      x: 0.0
+      y: 2.0
+      z: -23.5
 
     # Hunter class selection displays
     hunter-classes:
       brute:
-        x: 90.0
-        y: 67.0
-        z: 195.0
+        x: -23.4
+        y: 3.0
+        z: 6.499
       nimble:
-        x: 93.0
-        y: 67.0
-        z: 195.0
+        x: -24.508
+        y: 3.0
+        z: 0.378
       saboteur:
-        x: 96.0
-        y: 67.0
-        z: 195.0
+        x: -23.425
+        y: 3.0
+        z: -5.507
 
     # Hider class selection displays
     hider-classes:
       trickster:
-        x: 90.0
-        y: 67.0
-        z: 197.0
+        x: 24.224
+        y: 3.0
+        z: 6.495
       phaser:
-        x: 93.0
-        y: 67.0
-        z: 197.0
+        x: 24.598
+        y: 3.0
+        z: -5.59
       cloaker:
-        x: 96.0
-        y: 67.0
-        z: 197.0
+        x: 25.775
+        y: 3.0
+        z: 0.723
 
   # Round duration formula - base time plus a scaling amount per hider, locked in
   # against the roster size at round start (not re-evaluated as hiders are eliminated).
@@ -161,38 +176,38 @@ hunt:
   prep-phase:
     # Location for the "START GAME" hologram
     start-hologram:
-      x: 95.0
-      y: 67.0
-      z: 195.0
+      x: 3.452
+      y: 2.0
+      z: -23.597
 
     # Map voting hologram locations (names must match HuntMap enum values)
     map-vote-holograms:
       castle:
-        x: 88.0
-        y: 66.0
-        z: 190.0
+        x: -1.552
+        y: 3.0
+        z: -4.588
       mountain:
-        x: 90.0
-        y: 66.0
-        z: 190.0
+        x: 2.645
+        y: 3.0
+        z: -4.438
       medieval:
-        x: 92.0
-        y: 66.0
-        z: 190.0
+        x: 5.614
+        y: 3.0
+        z: 2.567
       industrial:
-        x: 94.0
-        y: 66.0
-        z: 190.0
+        x: 5.579
+        y: 3.0
+        z: -1.356
       office:
-        x: 96.0
-        y: 66.0
-        z: 190.0
+        x: -4.426
+        y: 3.0
+        z: -1.678
 
     # Ready tracking hologram location
     ready-status:
-      x: 100.0
-      y: 67.0
-      z: 195.0
+      x: -2.586
+      y: 2.0
+      z: -23.461
 
     # Countdown settings
     countdown-duration: 5 # seconds
@@ -261,104 +276,85 @@ hunt:
       # round read as "never happens again."
       reselect-cooldown-seconds: 25
 
-  # Map configurations
+  # Map configurations. Keys must match HuntMap enum values lowercased (castle/mountain/
+  # medieval/industrial/office) - display name and description live in HuntMap.java itself,
+  # not here.
   maps:
-    warehouse:
-      display-name: "Warehouse"
-      description: "Industrial warehouse with lots of hiding spots"
-      world: "hunt_warehouse"
+    castle:
+      world: "HuntWorld1"
       # Hunter spawn location (locked area)
       hunter-spawn:
-        x: 0.0
-        y: 64.0
-        z: 0.0
-        yaw: 0.0
+        x: -1
+        y: 92.0
+        z: 9
+        yaw: 90.0
         pitch: 0.0
       # Hider spawn locations (multiple spawn points)
       hider-spawns:
-        - x: 50.0
-          y: 64.0
-          z: 50.0
-          yaw: 0.0
-          pitch: 0.0
-        - x: -50
-          y: 64.0
-          z: 50.0
-          yaw: 90.0
-          pitch: 0.0
-        - x: 50.0
-          y: 64.0
-          z: -50
+        - x: -7.0
+          y: 92.0
+          z: 8.0
           yaw: 180.0
-          pitch: 0.0
-        - x: -50
-          y: 64.0
-          z: -50
-          yaw: 270.0
           pitch: 0.0
 
-    factory:
-      display-name: "Factory"
-      description: "Abandoned factory with machinery and conveyor belts"
-      world: "hunt_factory"
+    mountain:
+      world: "HuntWorld2"
       hunter-spawn:
-        x: 0.0
-        y: 64.0
-        z: 0.0
-        yaw: 0.0
+        x: -10.0
+        y: 68.0
+        z: 22.0
+        yaw: 90.0
         pitch: 0.0
       hider-spawns:
-        - x: 75.0
-          y: 64.0
-          z: 75.0
-          yaw: 0.0
-          pitch: 0.0
-        - x: -75
-          y: 64.0
-          z: 75.0
-          yaw: 90.0
-          pitch: 0.0
-        - x: 75.0
-          y: 64.0
-          z: -75
+        - x: -16.5
+          y: 70.0
+          z: 23.0
           yaw: 180.0
-          pitch: 0.0
-        - x: -75
-          y: 64.0
-          z: -75
-          yaw: 270.0
           pitch: 0.0
 
-    mansion:
-      display-name: "Mansion"
-      description: "Spooky mansion with many rooms and secret passages"
-      world: "hunt_mansion"
+    medieval:
+      world: "HuntWorld3"
       hunter-spawn:
-        x: 0.0
-        y: 64.0
-        z: 0.0
-        yaw: 0.0
+        x: 27.5
+        y: 84.0
+        z: -9.0
+        yaw: 90.0
         pitch: 0.0
       hider-spawns:
-        - x: 100.0
-          y: 64.0
-          z: 100.0
-          yaw: 0.0
-          pitch: 0.0
-        - x: -100
-          y: 64.0
-          z: 100.0
-          yaw: 90.0
-          pitch: 0.0
-        - x: 100.0
-          y: 64.0
-          z: -100
+        - x: 34.5
+          y: 84.0
+          z: 10.5
           yaw: 180.0
           pitch: 0.0
-        - x: -100
-          y: 64.0
-          z: -100
-          yaw: 270.0
+
+    industrial:
+      world: "HuntWorld4"
+      hunter-spawn:
+        x: -1104.5
+        y: 48.0
+        z: -483.5
+        yaw: 90.0
+        pitch: 0.0
+      hider-spawns:
+        - x: -1107.5
+          y: 49.0
+          z: -493.5
+          yaw: 180.0
+          pitch: 0.0
+
+    office:
+      world: "HuntWorld5"
+      hunter-spawn:
+        x: 216.5
+        y: 16.0
+        z: -239.5
+        yaw: 90.0
+        pitch: 0.0
+      hider-spawns:
+        - x: 182.5
+          y: 22.0
+          z: -208.5
+          yaw: 180.0
           pitch: 0.0
 
   # Hider ability cooldowns (in seconds)
