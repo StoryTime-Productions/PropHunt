@@ -166,6 +166,10 @@ public class HuntDisguiseNpcManager implements Listener {
     // Spawn server-side Interaction entities for reliable right-click detection
     for (DisguiseNpc npc : npcs) {
       String npcId = npc.id();
+
+      // Chunk ticket needed alongside setPersistent(true) - see specs/holograms-not-showing.md.
+      npc.location().getChunk().addPluginChunkTicket(plugin);
+
       Interaction interaction =
           world.spawn(
               npc.location(),
@@ -173,7 +177,7 @@ public class HuntDisguiseNpcManager implements Listener {
               i -> {
                 i.setInteractionWidth(1.2f);
                 i.setInteractionHeight(2.0f);
-                i.setPersistent(false);
+                i.setPersistent(true);
                 i.getPersistentDataContainer()
                     .set(npcInteractionKey, PersistentDataType.BYTE, (byte) 1);
                 i.getPersistentDataContainer()
