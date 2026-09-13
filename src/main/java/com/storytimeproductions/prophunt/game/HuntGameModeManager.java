@@ -159,7 +159,8 @@ public class HuntGameModeManager {
         playerData.setSelectedDisguiseSkin(null);
         playerData.setReady(false);
 
-        player.sendMessage(
+        com.storytimeproductions.prophunt.util.HuntMessages.send(
+            player,
             net.kyori.adventure.text.Component.text(
                 "Game mode changed! Your class selections and items have been cleared.",
                 net.kyori.adventure.text.format.NamedTextColor.YELLOW));

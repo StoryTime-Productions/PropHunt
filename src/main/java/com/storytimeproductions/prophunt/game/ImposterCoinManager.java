@@ -1,5 +1,6 @@
 package com.storytimeproductions.prophunt.game;
 
+import com.storytimeproductions.prophunt.util.HuntMessages;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -239,7 +240,7 @@ public class ImposterCoinManager implements Listener {
       giveZapperToBuy(player, playerData);
     }
 
-    player.sendMessage(message);
+    HuntMessages.send(player, message);
 
     // Visual and audio effects
     player.playSound(player.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1.0f, 1.2f);
@@ -287,12 +288,14 @@ public class ImposterCoinManager implements Listener {
   /** Handles purchasing zappers with coins. */
   public void handleZapperPurchase(Player player, ImposterPlayerData playerData) {
     if (playerData.getRole() != ImposterRole.INNOCENT) {
-      player.sendMessage(Component.text("Only innocents can buy zappers!", NamedTextColor.RED));
+      HuntMessages.send(
+          player, Component.text("Only innocents can buy zappers!", NamedTextColor.RED));
       return;
     }
 
     if (playerData.getCoins() < COINS_FOR_ZAPPER) {
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text(
               "You need " + COINS_FOR_ZAPPER + " coins to buy a zapper!", NamedTextColor.RED));
       return;
@@ -308,7 +311,8 @@ public class ImposterCoinManager implements Listener {
     // Remove purchase item
     removePurchaseItem(player);
 
-    player.sendMessage(
+    HuntMessages.send(
+        player,
         Component.text("Zapper purchased! ", NamedTextColor.GREEN)
             .append(
                 Component.text(
