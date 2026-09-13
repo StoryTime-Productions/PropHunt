@@ -1,5 +1,6 @@
 package com.storytimeproductions.prophunt.game;
 
+import com.storytimeproductions.prophunt.util.HuntMessages;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -387,7 +388,7 @@ public class HiderUtilityListener implements Listener {
                   + canRotate);
     }
 
-    player.sendMessage(Component.text(message).color(NamedTextColor.GREEN));
+    HuntMessages.send(player, Component.text(message).color(NamedTextColor.GREEN));
   }
 
   /**
@@ -415,9 +416,10 @@ public class HiderUtilityListener implements Listener {
     applyTricksterStunEffect(victim);
 
     attacker.playSound(attacker.getLocation(), Sound.BLOCK_TRIPWIRE_CLICK_ON, 1.0f, 1.0f);
-    attacker.sendMessage(
+    HuntMessages.send(
+        attacker,
         Component.text("You've stunned " + victim.getName() + "!").color(NamedTextColor.GREEN));
-    victim.sendMessage(Component.text("A Trickster stunned you!").color(NamedTextColor.RED));
+    HuntMessages.send(victim, Component.text("A Trickster stunned you!").color(NamedTextColor.RED));
     return true;
   }
 
@@ -715,7 +717,8 @@ public class HiderUtilityListener implements Listener {
     player.getWorld().spawnParticle(Particle.CLOUD, player.getLocation(), 20, 0.5, 1, 0.5, 0.1);
     player.playSound(player.getLocation(), Sound.ENTITY_ENDERMAN_TELEPORT, 1.0f, 0.5f);
 
-    player.sendMessage(
+    HuntMessages.send(
+        player,
         Component.text("You are now invisible for " + durationSeconds + " seconds!")
             .color(NamedTextColor.GRAY));
 
@@ -749,7 +752,8 @@ public class HiderUtilityListener implements Listener {
           // Apply the restored disguise
           DisguiseAPI.disguiseToAll(player, disguise);
 
-          player.sendMessage(
+          HuntMessages.send(
+              player,
               Component.text("Your block disguise has been restored.").color(NamedTextColor.GREEN));
 
           plugin.getLogger().info("Successfully restored disguise for " + player.getName());
@@ -828,7 +832,8 @@ public class HiderUtilityListener implements Listener {
       directional.setFacing(faces[nextIndex]);
       rotated = true;
 
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text("Block rotated to face " + faces[nextIndex].name().toLowerCase())
               .color(NamedTextColor.GRAY));
 
@@ -857,7 +862,8 @@ public class HiderUtilityListener implements Listener {
       rotatable.setRotation(faces[nextIndex]);
       rotated = true;
 
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text("Block rotated to face " + faces[nextIndex].name().toLowerCase())
               .color(NamedTextColor.GRAY));
 
@@ -881,7 +887,8 @@ public class HiderUtilityListener implements Listener {
       orientable.setAxis(axes[nextIndex]);
       rotated = true;
 
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text("Block oriented along " + axes[nextIndex].name().toLowerCase() + " axis")
               .color(NamedTextColor.GRAY));
     }

@@ -1,5 +1,6 @@
 package com.storytimeproductions.prophunt.game;
 
+import com.storytimeproductions.prophunt.util.HuntMessages;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -310,10 +311,12 @@ public class HuntDeathHandler implements Listener {
 
     // Personalized message to the player
     if (isHider) {
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text("You've been eliminated! You are now spectating.", NamedTextColor.RED));
     } else {
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text("You've been knocked out! You are now spectating.", NamedTextColor.GOLD));
     }
 
@@ -529,7 +532,7 @@ public class HuntDeathHandler implements Listener {
   private void broadcastMessage(String message, NamedTextColor color) {
     for (Player player : Bukkit.getOnlinePlayers()) {
       if (isPlayerInHuntWorld(player)) {
-        player.sendMessage(Component.text(message, color));
+        HuntMessages.send(player, Component.text(message, color));
       }
     }
   }
@@ -721,8 +724,8 @@ public class HuntDeathHandler implements Listener {
       boolean stunned =
           hiderUtilityListener != null && hiderUtilityListener.tryTricksterStrike(attacker, victim);
       if (!stunned) {
-        attacker.sendMessage(
-            Component.text("You cannot attack hunters as a hider!", NamedTextColor.RED));
+        HuntMessages.send(
+            attacker, Component.text("You cannot attack hunters as a hider!", NamedTextColor.RED));
         plugin
             .getLogger()
             .info(
@@ -740,8 +743,8 @@ public class HuntDeathHandler implements Listener {
     } else if (attackerTeam == victimTeam) {
       // Same team - prevent friendly fire
       event.setCancelled(true);
-      attacker.sendMessage(
-          Component.text("You cannot attack your teammates!", NamedTextColor.YELLOW));
+      HuntMessages.send(
+          attacker, Component.text("You cannot attack your teammates!", NamedTextColor.YELLOW));
       plugin
           .getLogger()
           .info("Blocked friendly fire between " + attacker.getName() + " and " + victim.getName());

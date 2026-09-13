@@ -1,5 +1,6 @@
 package com.storytimeproductions.prophunt.game;
 
+import com.storytimeproductions.prophunt.util.HuntMessages;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -240,7 +241,8 @@ public class ImposterGameManager {
             Component.text(role.getDescription(), NamedTextColor.GRAY));
 
     player.showTitle(roleTitle);
-    player.sendMessage(
+    HuntMessages.send(
+        player,
         Component.text("Role: ", NamedTextColor.GRAY)
             .append(Component.text(role.getDisplayName(), color))
             .append(Component.text(" — " + role.getDescription(), NamedTextColor.WHITE)));
@@ -490,7 +492,7 @@ public class ImposterGameManager {
     for (UUID playerId : playerData.keySet()) {
       Player player = Bukkit.getPlayer(playerId);
       if (player != null && player.isOnline()) {
-        player.sendMessage(Component.text(message, color));
+        HuntMessages.send(player, Component.text(message, color));
       }
     }
   }
@@ -565,7 +567,7 @@ public class ImposterGameManager {
 
     // Set to spectator mode
     deadPlayer.setGameMode(GameMode.SPECTATOR);
-    deadPlayer.sendMessage(Component.text("You have been eliminated!", NamedTextColor.RED));
+    HuntMessages.send(deadPlayer, Component.text("You have been eliminated!", NamedTextColor.RED));
 
     // Check win conditions
     checkWinConditions();
@@ -592,7 +594,8 @@ public class ImposterGameManager {
         // Sheriff killed innocent - sheriff dies too
         killerData.setDead(true);
         killer.setGameMode(GameMode.SPECTATOR);
-        killer.sendMessage(
+        HuntMessages.send(
+            killer,
             Component.text("You killed an innocent and have been eliminated!", NamedTextColor.RED));
 
         // Drop sheriff magnifying glass for innocents to pick up
@@ -614,7 +617,8 @@ public class ImposterGameManager {
         // Innocent killed another innocent or sheriff - innocent dies too
         killerData.setDead(true);
         killer.setGameMode(GameMode.SPECTATOR);
-        killer.sendMessage(
+        HuntMessages.send(
+            killer,
             Component.text(
                 "You killed a fellow innocent/sheriff and have been eliminated!",
                 NamedTextColor.RED));

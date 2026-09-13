@@ -1,5 +1,6 @@
 package com.storytimeproductions.prophunt.game;
 
+import com.storytimeproductions.prophunt.util.HuntMessages;
 import java.util.List;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
@@ -109,13 +110,14 @@ public class ImposterListener implements Listener {
   private void handleThrowableWeapon(
       Player player, ImposterPlayerData playerData, PlayerInteractEvent event) {
     if (playerData.getRole() != ImposterRole.MURDERER) {
-      player.sendMessage(Component.text("You cannot use this item!", NamedTextColor.RED));
+      HuntMessages.send(player, Component.text("You cannot use this item!", NamedTextColor.RED));
       event.setCancelled(true);
       return;
     }
 
     if (!playerData.canUseThrowable(THROWABLE_COOLDOWN)) {
-      player.sendMessage(Component.text("Throwable weapon is on cooldown!", NamedTextColor.RED));
+      HuntMessages.send(
+          player, Component.text("Throwable weapon is on cooldown!", NamedTextColor.RED));
       event.setCancelled(true);
       return;
     }
@@ -143,7 +145,7 @@ public class ImposterListener implements Listener {
   private void handleSheriffZapper(
       Player player, ImposterPlayerData playerData, PlayerInteractEvent event) {
     if (playerData.getRole() != ImposterRole.SHERIFF) {
-      player.sendMessage(Component.text("You cannot use this item!", NamedTextColor.RED));
+      HuntMessages.send(player, Component.text("You cannot use this item!", NamedTextColor.RED));
       event.setCancelled(true);
       return;
     }
@@ -152,14 +154,14 @@ public class ImposterListener implements Listener {
     Player target = getTargetPlayer(player, 10.0); // 10 block range
 
     if (target == null) {
-      player.sendMessage(Component.text("No target in range!", NamedTextColor.RED));
+      HuntMessages.send(player, Component.text("No target in range!", NamedTextColor.RED));
       event.setCancelled(true);
       return;
     }
 
     ImposterPlayerData targetData = gameManager.getPlayerData(target.getUniqueId());
     if (targetData == null || targetData.isDead()) {
-      player.sendMessage(Component.text("Invalid target!", NamedTextColor.RED));
+      HuntMessages.send(player, Component.text("Invalid target!", NamedTextColor.RED));
       event.setCancelled(true);
       return;
     }
@@ -173,13 +175,13 @@ public class ImposterListener implements Listener {
   private void handleInnocentZapper(
       Player player, ImposterPlayerData playerData, PlayerInteractEvent event) {
     if (playerData.getRole() != ImposterRole.INNOCENT) {
-      player.sendMessage(Component.text("You cannot use this item!", NamedTextColor.RED));
+      HuntMessages.send(player, Component.text("You cannot use this item!", NamedTextColor.RED));
       event.setCancelled(true);
       return;
     }
 
     if (!playerData.useZapper()) {
-      player.sendMessage(Component.text("You don't have any zappers!", NamedTextColor.RED));
+      HuntMessages.send(player, Component.text("You don't have any zappers!", NamedTextColor.RED));
       event.setCancelled(true);
       return;
     }
@@ -188,7 +190,7 @@ public class ImposterListener implements Listener {
     Player target = getTargetPlayer(player, 8.0); // 8 block range for innocent zappers
 
     if (target == null) {
-      player.sendMessage(Component.text("No target in range!", NamedTextColor.RED));
+      HuntMessages.send(player, Component.text("No target in range!", NamedTextColor.RED));
       // Refund the zapper since no target was found
       playerData.addZappers(1);
       event.setCancelled(true);
@@ -197,7 +199,7 @@ public class ImposterListener implements Listener {
 
     ImposterPlayerData targetData = gameManager.getPlayerData(target.getUniqueId());
     if (targetData == null || targetData.isDead()) {
-      player.sendMessage(Component.text("Invalid target!", NamedTextColor.RED));
+      HuntMessages.send(player, Component.text("Invalid target!", NamedTextColor.RED));
       // Refund the zapper since target was invalid
       playerData.addZappers(1);
       event.setCancelled(true);
@@ -216,7 +218,7 @@ public class ImposterListener implements Listener {
   private void handleMagnifyingGlass(
       Player player, ImposterPlayerData playerData, PlayerInteractEvent event) {
     if (playerData.getRole() != ImposterRole.SHERIFF) {
-      player.sendMessage(Component.text("You cannot use this item!", NamedTextColor.RED));
+      HuntMessages.send(player, Component.text("You cannot use this item!", NamedTextColor.RED));
       event.setCancelled(true);
       return;
     }
@@ -225,7 +227,8 @@ public class ImposterListener implements Listener {
       long remainingTime =
           INVESTIGATION_COOLDOWN
               - (System.currentTimeMillis() - playerData.getLastInvestigationTime()) / 1000;
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text(
               "Investigation on cooldown for " + remainingTime + " seconds!", NamedTextColor.RED));
       event.setCancelled(true);
@@ -234,7 +237,8 @@ public class ImposterListener implements Listener {
 
     Block targetBlock = event.getClickedBlock();
     if (targetBlock == null || targetBlock.getType() != Material.PLAYER_HEAD) {
-      player.sendMessage(Component.text("You must target a gravestone!", NamedTextColor.RED));
+      HuntMessages.send(
+          player, Component.text("You must target a gravestone!", NamedTextColor.RED));
       event.setCancelled(true);
       return;
     }
@@ -343,7 +347,7 @@ public class ImposterListener implements Listener {
 
     // Convert innocent to sheriff
     playerData.setRole(ImposterRole.SHERIFF);
-    player.sendMessage(Component.text("You are now the Sheriff!", NamedTextColor.BLUE));
+    HuntMessages.send(player, Component.text("You are now the Sheriff!", NamedTextColor.BLUE));
 
     // Give sheriff items
     giveSheriffItems(player);
@@ -449,8 +453,9 @@ public class ImposterListener implements Listener {
       timeInfo = minutesAgo + " minute" + (minutesAgo > 1 ? "s" : "") + " ago";
     }
 
-    investigator.sendMessage(Component.text("Investigation Result:", NamedTextColor.AQUA));
-    investigator.sendMessage(Component.text("Time of death: " + timeInfo, NamedTextColor.YELLOW));
+    HuntMessages.send(investigator, Component.text("Investigation Result:", NamedTextColor.AQUA));
+    HuntMessages.send(
+        investigator, Component.text("Time of death: " + timeInfo, NamedTextColor.YELLOW));
 
     // Visual and audio effects
     investigator

@@ -1,5 +1,6 @@
 package com.storytimeproductions.prophunt.game;
 
+import com.storytimeproductions.prophunt.util.HuntMessages;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -216,7 +217,7 @@ public class HuntUtilityListener implements Listener {
         target.addPotionEffect(
             new PotionEffect(
                 PotionEffectType.GLOWING, glowDurationSeconds * 20, 0, false, false, true));
-        target.sendMessage(Component.text("A shockwave revealed you!", NamedTextColor.RED));
+        HuntMessages.send(target, Component.text("A shockwave revealed you!", NamedTextColor.RED));
       }
     }
 
@@ -292,7 +293,8 @@ public class HuntUtilityListener implements Listener {
             // Strip disguise so all hunters can see and chase them
             DisguiseAPI.undisguiseToAll(scanTarget);
             scanTarget.setGlowing(true);
-            scanTarget.sendMessage(
+            HuntMessages.send(
+                scanTarget,
                 Component.text("A scanner revealed you! Re-disguise quickly!", NamedTextColor.RED));
             final var savedBlockData = blockData;
             new BukkitRunnable() {
@@ -317,7 +319,8 @@ public class HuntUtilityListener implements Listener {
             // counterplay against it.
             scanTarget.removePotionEffect(PotionEffectType.INVISIBILITY);
             scanTarget.setGlowing(true);
-            scanTarget.sendMessage(
+            HuntMessages.send(
+                scanTarget,
                 Component.text("A scanner revealed you despite your cloak!", NamedTextColor.RED));
             new BukkitRunnable() {
               @Override

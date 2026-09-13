@@ -1,5 +1,6 @@
 package com.storytimeproductions.prophunt.game;
 
+import com.storytimeproductions.prophunt.util.HuntMessages;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -188,7 +189,8 @@ public class HuntPrepPhaseManager {
 
     // Notify all players
     for (Player player : Bukkit.getOnlinePlayers()) {
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text(
               "Hunt prep phase started! Vote for a map and get ready!", NamedTextColor.GREEN));
     }
@@ -315,8 +317,8 @@ public class HuntPrepPhaseManager {
     playerMapVotes.put(playerId, map);
     mapVoteCounts.put(map, mapVoteCounts.get(map) + 1);
 
-    player.sendMessage(
-        Component.text("Voted for " + map.getDisplayName() + "!", NamedTextColor.YELLOW));
+    HuntMessages.send(
+        player, Component.text("Voted for " + map.getDisplayName() + "!", NamedTextColor.YELLOW));
 
     // Update game participants since map vote is now required
     HuntPlayerData data = lobbyManager.getPlayerData(playerId);
@@ -362,7 +364,7 @@ public class HuntPrepPhaseManager {
         strategy.canPlayerReady(player, data, playerMapVotes, hologramManager);
 
     if (!readyResult.canReady()) {
-      player.sendMessage(Component.text(readyResult.getErrorMessage(), NamedTextColor.RED));
+      HuntMessages.send(player, Component.text(readyResult.getErrorMessage(), NamedTextColor.RED));
       return;
     }
 
@@ -409,7 +411,8 @@ public class HuntPrepPhaseManager {
     // Note: We don't remove from gameParticipants when unreadying - they're still
     // in the game
 
-    player.sendMessage(
+    HuntMessages.send(
+        player,
         Component.text(
             ready ? "You are now ready!" : "You are no longer ready",
             ready ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
@@ -704,7 +707,8 @@ public class HuntPrepPhaseManager {
             teleportedCount++;
             hunterCount++;
 
-            player.sendMessage(
+            HuntMessages.send(
+                player,
                 Component.text("You have been locked in the hunter area!", NamedTextColor.RED));
 
             plugin.getLogger().info("Teleported hunter " + player.getName() + " to hunter spawn");
@@ -758,7 +762,8 @@ public class HuntPrepPhaseManager {
             teleportedCount++;
             hiderCount++;
 
-            player.sendMessage(Component.text("Find a hiding spot quickly!", NamedTextColor.BLUE));
+            HuntMessages.send(
+                player, Component.text("Find a hiding spot quickly!", NamedTextColor.BLUE));
 
             plugin.getLogger().info("Teleported hider " + player.getName() + " to hider spawn");
           } else {
@@ -1092,7 +1097,8 @@ public class HuntPrepPhaseManager {
                   Component.text("Find the hiders!", NamedTextColor.YELLOW));
           hunter.showTitle(huntTitle);
 
-          hunter.sendMessage(Component.text("You are now free to hunt!", NamedTextColor.GREEN));
+          HuntMessages.send(
+              hunter, Component.text("You are now free to hunt!", NamedTextColor.GREEN));
           plugin.getLogger().info("Released hunter from lock-in: " + hunter.getName());
         }
       }
@@ -1219,7 +1225,8 @@ public class HuntPrepPhaseManager {
    */
   public void forceEndGame(org.bukkit.command.CommandSender sender) {
     if (gameEnded && !gameActive && !prepPhaseActive && !gameStarting) {
-      sender.sendMessage(
+      HuntMessages.send(
+          sender,
           net.kyori.adventure.text.Component.text(
               "No active hunt game to end.",
               net.kyori.adventure.text.format.NamedTextColor.YELLOW));
@@ -1239,7 +1246,8 @@ public class HuntPrepPhaseManager {
       gameActive = true; // allow endGame to proceed
       endGame(HuntTeam.HUNTERS); // neutral winner for forced end
     }
-    sender.sendMessage(
+    HuntMessages.send(
+        sender,
         net.kyori.adventure.text.Component.text(
             "Hunt round force-ended.", net.kyori.adventure.text.format.NamedTextColor.GREEN));
     plugin.getLogger().info("Hunt round force-ended by " + sender.getName());
@@ -1572,7 +1580,7 @@ public class HuntPrepPhaseManager {
 
   private void broadcastMessage(String message, NamedTextColor color) {
     for (Player player : Bukkit.getOnlinePlayers()) {
-      player.sendMessage(Component.text(message, color));
+      HuntMessages.send(player, Component.text(message, color));
     }
   }
 
@@ -1801,7 +1809,8 @@ public class HuntPrepPhaseManager {
       gameClassSelections.remove(playerId);
       playerReadyStatus.remove(playerId);
 
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text(
               "Removed vote for " + previousVote.getDisplayName() + "!", NamedTextColor.YELLOW));
 
@@ -1812,7 +1821,8 @@ public class HuntPrepPhaseManager {
       // Update holograms
       updateReadyStatusHologram();
     } else {
-      player.sendMessage(Component.text("You haven't voted for any map!", NamedTextColor.RED));
+      HuntMessages.send(
+          player, Component.text("You haven't voted for any map!", NamedTextColor.RED));
     }
   }
 

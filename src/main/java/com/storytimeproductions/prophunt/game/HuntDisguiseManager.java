@@ -2,6 +2,7 @@ package com.storytimeproductions.prophunt.game;
 
 import com.mojang.authlib.GameProfile;
 import com.mojang.authlib.properties.Property;
+import com.storytimeproductions.prophunt.util.HuntMessages;
 import io.papermc.paper.profile.MutablePropertyMap;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
@@ -149,7 +150,8 @@ public class HuntDisguiseManager {
       Player player, String locationId, HuntHologramManager hologramManager) {
 
     if (gameModeManager.getCurrentGameMode() == HuntGameMode.IMPOSTER_HUNT) {
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text("Disguises are not available in Imposter Hunt mode!", NamedTextColor.RED));
       return;
     }
@@ -170,7 +172,8 @@ public class HuntDisguiseManager {
     String skinName = standSkins.get(locationId);
     String displayName = standDisplayNames.get(locationId);
     if (skinName == null || displayName == null) {
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text("Failed to get disguise data!", NamedTextColor.RED, TextDecoration.BOLD));
       return;
     }
@@ -261,19 +264,22 @@ public class HuntDisguiseManager {
                     },
                     duration * 20L);
         disguiseTasks.put(player.getUniqueId(), task);
-        player.sendMessage(
+        HuntMessages.send(
+            player,
             Component.text("Disguised as ", NamedTextColor.GREEN)
                 .append(Component.text(displayName, NamedTextColor.WHITE))
                 .append(Component.text(" for " + duration + " seconds!", NamedTextColor.GREEN)));
       } else {
-        player.sendMessage(
+        HuntMessages.send(
+            player,
             Component.text("Disguised as ", NamedTextColor.GREEN)
                 .append(Component.text(displayName, NamedTextColor.WHITE))
                 .append(Component.text("!", NamedTextColor.GREEN)));
       }
       HunterDisguiseType disguiseType = HunterDisguiseType.fromDisplayName(displayName);
       if (disguiseType != null) {
-        player.sendMessage(
+        HuntMessages.send(
+            player,
             Component.text("  Passive: ", NamedTextColor.GRAY)
                 .append(
                     Component.text(
@@ -290,7 +296,8 @@ public class HuntDisguiseManager {
       }
 
     } catch (Exception e) {
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text("Failed to apply disguise!", NamedTextColor.RED, TextDecoration.BOLD));
       plugin
           .getLogger()
@@ -322,7 +329,7 @@ public class HuntDisguiseManager {
         lobbyManager.showSidebar(player);
       }
 
-      player.sendMessage(Component.text("Disguise removed!", NamedTextColor.YELLOW));
+      HuntMessages.send(player, Component.text("Disguise removed!", NamedTextColor.YELLOW));
     }
 
     BukkitTask task = disguiseTasks.get(player.getUniqueId());
