@@ -15,6 +15,7 @@ import com.storytimeproductions.prophunt.game.HuntPlayerData;
 import com.storytimeproductions.prophunt.game.HuntPrepPhaseManager;
 import com.storytimeproductions.prophunt.game.HuntTeam;
 import com.storytimeproductions.prophunt.game.HunterClass;
+import com.storytimeproductions.prophunt.util.HuntMessages;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
@@ -111,7 +112,7 @@ public class HuntCommand implements CommandExecutor {
       // Auto-start prep phase if not already active
       if (!prepPhaseManager.isPrepPhaseActive() && !prepPhaseManager.isGameStarting()) {
         prepPhaseManager.startPrepPhase();
-        player.sendMessage(Component.text("Started Hunt prep phase!", NamedTextColor.GREEN));
+        HuntMessages.send(player, Component.text("Started Hunt prep phase!", NamedTextColor.GREEN));
       }
 
       teleportToHuntSpawn(player);
@@ -121,16 +122,18 @@ public class HuntCommand implements CommandExecutor {
     switch (args[0].toLowerCase()) {
       case "lobby" -> {
         lobbyManager.openMainMenu(player);
-        player.sendMessage(Component.text("Opening Hunt game lobby...", NamedTextColor.GREEN));
+        HuntMessages.send(
+            player, Component.text("Opening Hunt game lobby...", NamedTextColor.GREEN));
       }
       case "join" -> {
         if (args.length < 2) {
-          player.sendMessage(Component.text("Usage: /hunt join <className>", NamedTextColor.RED));
-          player.sendMessage(Component.text("Available classes:", NamedTextColor.YELLOW));
-          player.sendMessage(
-              Component.text("Hunters: brute, nimble, saboteur", NamedTextColor.WHITE));
-          player.sendMessage(
-              Component.text("Hiders: trickster, phaser, cloaker", NamedTextColor.WHITE));
+          HuntMessages.send(
+              player, Component.text("Usage: /hunt join <className>", NamedTextColor.RED));
+          HuntMessages.send(player, Component.text("Available classes:", NamedTextColor.YELLOW));
+          HuntMessages.send(
+              player, Component.text("Hunters: brute, nimble, saboteur", NamedTextColor.WHITE));
+          HuntMessages.send(
+              player, Component.text("Hiders: trickster, phaser, cloaker", NamedTextColor.WHITE));
           return true;
         }
 
@@ -139,11 +142,12 @@ public class HuntCommand implements CommandExecutor {
       }
       case "map" -> {
         if (args.length < 2) {
-          player.sendMessage(Component.text("Usage: /hunt map <mapName>", NamedTextColor.RED));
-          player.sendMessage(Component.text("Available maps:", NamedTextColor.YELLOW));
+          HuntMessages.send(
+              player, Component.text("Usage: /hunt map <mapName>", NamedTextColor.RED));
+          HuntMessages.send(player, Component.text("Available maps:", NamedTextColor.YELLOW));
           for (HuntMap map : HuntMap.values()) {
-            player.sendMessage(
-                Component.text("• " + map.name().toLowerCase(), NamedTextColor.WHITE));
+            HuntMessages.send(
+                player, Component.text("• " + map.name().toLowerCase(), NamedTextColor.WHITE));
           }
           return true;
         }
@@ -153,33 +157,36 @@ public class HuntCommand implements CommandExecutor {
       }
       case "prep" -> {
         if (args.length < 2) {
-          player.sendMessage(Component.text("Usage:", NamedTextColor.YELLOW));
-          player.sendMessage(
-              Component.text("/hunt prep start - Start prep phase", NamedTextColor.WHITE));
-          player.sendMessage(
-              Component.text("/hunt prep end - End prep phase", NamedTextColor.WHITE));
+          HuntMessages.send(player, Component.text("Usage:", NamedTextColor.YELLOW));
+          HuntMessages.send(
+              player, Component.text("/hunt prep start - Start prep phase", NamedTextColor.WHITE));
+          HuntMessages.send(
+              player, Component.text("/hunt prep end - End prep phase", NamedTextColor.WHITE));
           return true;
         }
 
         switch (args[1].toLowerCase()) {
           case "start" -> {
             prepPhaseManager.startPrepPhase();
-            player.sendMessage(Component.text("Started Hunt prep phase!", NamedTextColor.GREEN));
+            HuntMessages.send(
+                player, Component.text("Started Hunt prep phase!", NamedTextColor.GREEN));
           }
           case "end" -> {
             prepPhaseManager.endPrepPhase();
-            player.sendMessage(Component.text("Ended Hunt prep phase!", NamedTextColor.YELLOW));
+            HuntMessages.send(
+                player, Component.text("Ended Hunt prep phase!", NamedTextColor.YELLOW));
           }
           default -> {
-            player.sendMessage(Component.text("Invalid prep command!", NamedTextColor.RED));
-            player.sendMessage(Component.text("Use /hunt prep for help", NamedTextColor.YELLOW));
+            HuntMessages.send(player, Component.text("Invalid prep command!", NamedTextColor.RED));
+            HuntMessages.send(
+                player, Component.text("Use /hunt prep for help", NamedTextColor.YELLOW));
           }
         }
       }
       case "ready" -> {
         if (!prepPhaseManager.isPrepPhaseActive()) {
-          player.sendMessage(
-              Component.text("No prep phase is currently active!", NamedTextColor.RED));
+          HuntMessages.send(
+              player, Component.text("No prep phase is currently active!", NamedTextColor.RED));
           return true;
         }
 
@@ -192,13 +199,14 @@ public class HuntCommand implements CommandExecutor {
       }
       case "vote" -> {
         if (!prepPhaseManager.isPrepPhaseActive()) {
-          player.sendMessage(
-              Component.text("No prep phase is currently active!", NamedTextColor.RED));
+          HuntMessages.send(
+              player, Component.text("No prep phase is currently active!", NamedTextColor.RED));
           return true;
         }
 
         if (args.length < 2) {
-          player.sendMessage(Component.text("Usage: /hunt vote <mapName>", NamedTextColor.RED));
+          HuntMessages.send(
+              player, Component.text("Usage: /hunt vote <mapName>", NamedTextColor.RED));
           return true;
         }
 
@@ -210,12 +218,12 @@ public class HuntCommand implements CommandExecutor {
           }
         }
 
-        player.sendMessage(Component.text("Unknown map: " + mapName, NamedTextColor.RED));
+        HuntMessages.send(player, Component.text("Unknown map: " + mapName, NamedTextColor.RED));
       }
       case "start" -> {
         if (!prepPhaseManager.isPrepPhaseActive()) {
-          sender.sendMessage(
-              Component.text("No prep phase is currently active!", NamedTextColor.RED));
+          HuntMessages.send(
+              sender, Component.text("No prep phase is currently active!", NamedTextColor.RED));
           return true;
         }
 
@@ -228,7 +236,8 @@ public class HuntCommand implements CommandExecutor {
       }
       case "end" -> {
         if (!sender.hasPermission("hunt.admin")) {
-          sender.sendMessage(
+          HuntMessages.send(
+              sender,
               Component.text("You don't have permission to end the hunt.", NamedTextColor.RED));
           return true;
         }
@@ -236,12 +245,15 @@ public class HuntCommand implements CommandExecutor {
       }
       case "leave" -> {
         if (args.length < 2) {
-          player.sendMessage(Component.text("Usage:", NamedTextColor.YELLOW));
-          player.sendMessage(
+          HuntMessages.send(player, Component.text("Usage:", NamedTextColor.YELLOW));
+          HuntMessages.send(
+              player,
               Component.text("/hunt leave lobby - Leave the Hunt lobby", NamedTextColor.WHITE));
-          player.sendMessage(
+          HuntMessages.send(
+              player,
               Component.text("/hunt leave class - Leave your current class", NamedTextColor.WHITE));
-          player.sendMessage(
+          HuntMessages.send(
+              player,
               Component.text("/hunt leave map - Remove your map vote", NamedTextColor.WHITE));
           return true;
         }
@@ -253,7 +265,8 @@ public class HuntCommand implements CommandExecutor {
             // Clean up cooldowns
             classJoinCooldowns.remove(player.getUniqueId());
             voteJoinCooldowns.remove(player.getUniqueId());
-            player.sendMessage(Component.text("Left the Hunt game lobby.", NamedTextColor.YELLOW));
+            HuntMessages.send(
+                player, Component.text("Left the Hunt game lobby.", NamedTextColor.YELLOW));
           }
           case "class" -> {
             handleLeaveClass(player);
@@ -262,18 +275,22 @@ public class HuntCommand implements CommandExecutor {
             handleLeaveMap(player);
           }
           default -> {
-            player.sendMessage(Component.text("Invalid leave command!", NamedTextColor.RED));
-            player.sendMessage(Component.text("Use /hunt leave for help", NamedTextColor.YELLOW));
+            HuntMessages.send(player, Component.text("Invalid leave command!", NamedTextColor.RED));
+            HuntMessages.send(
+                player, Component.text("Use /hunt leave for help", NamedTextColor.YELLOW));
           }
         }
       }
       case "status" -> {
         var data = lobbyManager.getPlayerData(player.getUniqueId());
         if (data == null) {
-          player.sendMessage(Component.text("You are not in the Hunt lobby.", NamedTextColor.RED));
+          HuntMessages.send(
+              player, Component.text("You are not in the Hunt lobby.", NamedTextColor.RED));
         } else {
-          player.sendMessage(Component.text("=== Hunt Lobby Status ===", NamedTextColor.GOLD));
-          player.sendMessage(
+          HuntMessages.send(
+              player, Component.text("=== Hunt Lobby Status ===", NamedTextColor.GOLD));
+          HuntMessages.send(
+              player,
               Component.text(
                   "Team: "
                       + (data.getSelectedTeam() != null
@@ -290,24 +307,27 @@ public class HuntCommand implements CommandExecutor {
                 && data.getSelectedHiderClass() != null) {
               className = data.getSelectedHiderClass().getDisplayName();
             }
-            player.sendMessage(Component.text("Class: " + className, NamedTextColor.WHITE));
+            HuntMessages.send(player, Component.text("Class: " + className, NamedTextColor.WHITE));
           }
 
-          player.sendMessage(
+          HuntMessages.send(
+              player,
               Component.text(
                   "Map: "
                       + (data.getPreferredMap() != null
                           ? data.getPreferredMap().getDisplayName()
                           : "None"),
                   NamedTextColor.WHITE));
-          player.sendMessage(
+          HuntMessages.send(
+              player,
               Component.text(
                   "Game Mode: "
                       + (data.getPreferredGameMode() != null
                           ? data.getPreferredGameMode().getDisplayName()
                           : "None"),
                   NamedTextColor.WHITE));
-          player.sendMessage(
+          HuntMessages.send(
+              player,
               Component.text(
                   "Ready: " + (data.isReady() ? "Yes" : "No"),
                   data.isReady() ? NamedTextColor.GREEN : NamedTextColor.RED));
@@ -320,7 +340,8 @@ public class HuntCommand implements CommandExecutor {
           String worldName = huntConfig.getString("hunt.world", "hunt");
           org.bukkit.World huntWorld = Bukkit.getWorld(worldName);
           if (huntWorld == null) {
-            player.sendMessage(
+            HuntMessages.send(
+                player,
                 Component.text("Hunt world '" + worldName + "' not found!", NamedTextColor.RED));
             return true;
           }
@@ -328,19 +349,22 @@ public class HuntCommand implements CommandExecutor {
               .getEntitiesByClass(org.bukkit.entity.TextDisplay.class)
               .forEach(org.bukkit.entity.Entity::remove);
           hologramManager.initialize(huntConfig);
-          player.sendMessage(
+          HuntMessages.send(
+              player,
               Component.text(
                   "Wiped all text entities and re-spawned holograms.", NamedTextColor.GREEN));
         } catch (Exception e) {
-          player.sendMessage(
+          HuntMessages.send(
+              player,
               Component.text(
                   "Failed to wipe text entities: " + e.getMessage(), NamedTextColor.RED));
         }
       }
       case "disguise" -> {
         if (args.length < 2) {
-          player.sendMessage(Component.text("Usage:", NamedTextColor.YELLOW));
-          player.sendMessage(
+          HuntMessages.send(player, Component.text("Usage:", NamedTextColor.YELLOW));
+          HuntMessages.send(
+              player,
               Component.text("/hunt disguise remove - Remove your disguise", NamedTextColor.WHITE));
           return true;
         }
@@ -349,57 +373,68 @@ public class HuntCommand implements CommandExecutor {
           case "remove" -> {
             // Block disguise removal in Imposter Hunt mode
             if (gameModeManager.getCurrentGameMode() == HuntGameMode.IMPOSTER_HUNT) {
-              player.sendMessage(
+              HuntMessages.send(
+                  player,
                   Component.text(
                       "Disguise commands are not available in Imposter Hunt mode!",
                       NamedTextColor.RED));
               return true;
             }
             disguiseManager.removeDisguise(player);
-            player.sendMessage(Component.text("Removed your disguise!", NamedTextColor.YELLOW));
+            HuntMessages.send(
+                player, Component.text("Removed your disguise!", NamedTextColor.YELLOW));
           }
           case "reload" -> {
-            player.sendMessage(
+            HuntMessages.send(
+                player,
                 Component.text(
                     "Disguise NPCs reload automatically on world join.", NamedTextColor.YELLOW));
           }
           default -> {
-            player.sendMessage(Component.text("Invalid disguise command!", NamedTextColor.RED));
-            player.sendMessage(
-                Component.text("Use /hunt disguise for help", NamedTextColor.YELLOW));
+            HuntMessages.send(
+                player, Component.text("Invalid disguise command!", NamedTextColor.RED));
+            HuntMessages.send(
+                player, Component.text("Use /hunt disguise for help", NamedTextColor.YELLOW));
           }
         }
       }
       default -> {
-        player.sendMessage(Component.text("Usage:", NamedTextColor.YELLOW));
-        player.sendMessage(
-            Component.text("/hunt - Teleport to hunt world spawn", NamedTextColor.WHITE));
-        player.sendMessage(
-            Component.text("/hunt lobby - Open the Hunt lobby", NamedTextColor.WHITE));
-        player.sendMessage(
-            Component.text("/hunt join <className> - Join a class", NamedTextColor.WHITE));
-        player.sendMessage(
-            Component.text("/hunt map <mapName> - Vote for a map", NamedTextColor.WHITE));
-        player.sendMessage(
+        HuntMessages.send(player, Component.text("Usage:", NamedTextColor.YELLOW));
+        HuntMessages.send(
+            player, Component.text("/hunt - Teleport to hunt world spawn", NamedTextColor.WHITE));
+        HuntMessages.send(
+            player, Component.text("/hunt lobby - Open the Hunt lobby", NamedTextColor.WHITE));
+        HuntMessages.send(
+            player, Component.text("/hunt join <className> - Join a class", NamedTextColor.WHITE));
+        HuntMessages.send(
+            player, Component.text("/hunt map <mapName> - Vote for a map", NamedTextColor.WHITE));
+        HuntMessages.send(
+            player,
             Component.text("/hunt prep start/end - Manage prep phase", NamedTextColor.WHITE));
-        player.sendMessage(
+        HuntMessages.send(
+            player,
             Component.text("/hunt ready [true/false] - Set ready status", NamedTextColor.WHITE));
-        player.sendMessage(
+        HuntMessages.send(
+            player,
             Component.text(
                 "/hunt vote <mapName> - Vote for map (prep phase)", NamedTextColor.WHITE));
-        player.sendMessage(
-            Component.text("/hunt start - Start game (prep phase)", NamedTextColor.WHITE));
-        player.sendMessage(
+        HuntMessages.send(
+            player, Component.text("/hunt start - Start game (prep phase)", NamedTextColor.WHITE));
+        HuntMessages.send(
+            player,
             Component.text("/hunt leave lobby - Leave the Hunt lobby", NamedTextColor.WHITE));
-        player.sendMessage(
+        HuntMessages.send(
+            player,
             Component.text("/hunt leave class - Leave your current class", NamedTextColor.WHITE));
-        player.sendMessage(
-            Component.text("/hunt leave map - Remove your map vote", NamedTextColor.WHITE));
-        player.sendMessage(
-            Component.text("/hunt status - Check your lobby status", NamedTextColor.WHITE));
-        player.sendMessage(
+        HuntMessages.send(
+            player, Component.text("/hunt leave map - Remove your map vote", NamedTextColor.WHITE));
+        HuntMessages.send(
+            player, Component.text("/hunt status - Check your lobby status", NamedTextColor.WHITE));
+        HuntMessages.send(
+            player,
             Component.text("/hunt disguise - Manage disguise system", NamedTextColor.WHITE));
-        player.sendMessage(
+        HuntMessages.send(
+            player,
             Component.text(
                 "/hunt wipetext - Wipe all text displays and re-spawn holograms",
                 NamedTextColor.WHITE));
@@ -418,7 +453,8 @@ public class HuntCommand implements CommandExecutor {
   public void handleClassJoin(Player player, String className) {
     // Block class joining in Imposter Hunt mode
     if (gameModeManager.getCurrentGameMode() == HuntGameMode.IMPOSTER_HUNT) {
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text(
               "Class selection is not available in Imposter Hunt mode!", NamedTextColor.RED));
       return;
@@ -466,8 +502,8 @@ public class HuntCommand implements CommandExecutor {
               // Remove LibsDisguises block disguise if present
               if (DisguiseAPI.isDisguised(player)) {
                 DisguiseAPI.undisguiseToAll(player);
-                player.sendMessage(
-                    Component.text("Removed your block disguise!", NamedTextColor.YELLOW));
+                HuntMessages.send(
+                    player, Component.text("Removed your block disguise!", NamedTextColor.YELLOW));
               }
 
               // Clear hider cooldowns and stored data
@@ -532,8 +568,8 @@ public class HuntCommand implements CommandExecutor {
             if (playerData.getSelectedTeam() == HuntTeam.HUNTERS) {
               // Remove hunter disguise (using disguise manager)
               disguiseManager.removeDisguise(player);
-              player.sendMessage(
-                  Component.text("Removed your hunter disguise!", NamedTextColor.YELLOW));
+              HuntMessages.send(
+                  player, Component.text("Removed your hunter disguise!", NamedTextColor.YELLOW));
             }
 
             playerData.setSelectedTeam(HuntTeam.HIDERS);
@@ -567,10 +603,12 @@ public class HuntCommand implements CommandExecutor {
     }
 
     // Class not found
-    player.sendMessage(Component.text("Unknown class: " + className, NamedTextColor.RED));
-    player.sendMessage(Component.text("Available classes:", NamedTextColor.YELLOW));
-    player.sendMessage(Component.text("Hunters: brute, nimble, saboteur", NamedTextColor.WHITE));
-    player.sendMessage(Component.text("Hiders: trickster, phaser, cloaker", NamedTextColor.WHITE));
+    HuntMessages.send(player, Component.text("Unknown class: " + className, NamedTextColor.RED));
+    HuntMessages.send(player, Component.text("Available classes:", NamedTextColor.YELLOW));
+    HuntMessages.send(
+        player, Component.text("Hunters: brute, nimble, saboteur", NamedTextColor.WHITE));
+    HuntMessages.send(
+        player, Component.text("Hiders: trickster, phaser, cloaker", NamedTextColor.WHITE));
   }
 
   /**
@@ -635,10 +673,11 @@ public class HuntCommand implements CommandExecutor {
     }
 
     // Map not found
-    player.sendMessage(Component.text("Unknown map: " + mapName, NamedTextColor.RED));
-    player.sendMessage(Component.text("Available maps:", NamedTextColor.YELLOW));
+    HuntMessages.send(player, Component.text("Unknown map: " + mapName, NamedTextColor.RED));
+    HuntMessages.send(player, Component.text("Available maps:", NamedTextColor.YELLOW));
     for (HuntMap map : HuntMap.values()) {
-      player.sendMessage(Component.text("• " + map.name().toLowerCase(), NamedTextColor.WHITE));
+      HuntMessages.send(
+          player, Component.text("• " + map.name().toLowerCase(), NamedTextColor.WHITE));
     }
   }
 
@@ -650,7 +689,7 @@ public class HuntCommand implements CommandExecutor {
   private void handleLeaveClass(Player player) {
     String currentClass = hologramManager.getPlayerClassSelection(player.getUniqueId());
     if (currentClass == null) {
-      player.sendMessage(Component.text("You are not in any class!", NamedTextColor.RED));
+      HuntMessages.send(player, Component.text("You are not in any class!", NamedTextColor.RED));
       return;
     }
 
@@ -688,10 +727,11 @@ public class HuntCommand implements CommandExecutor {
         }
       }
 
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text("Left " + className + " (" + teamType + ")", NamedTextColor.YELLOW));
     } else {
-      player.sendMessage(Component.text("Failed to leave class!", NamedTextColor.RED));
+      HuntMessages.send(player, Component.text("Failed to leave class!", NamedTextColor.RED));
     }
   }
 
@@ -703,7 +743,8 @@ public class HuntCommand implements CommandExecutor {
   private void handleLeaveMap(Player player) {
     String currentMap = hologramManager.getPlayerMapVote(player.getUniqueId());
     if (currentMap == null) {
-      player.sendMessage(Component.text("You haven't voted for any map!", NamedTextColor.RED));
+      HuntMessages.send(
+          player, Component.text("You haven't voted for any map!", NamedTextColor.RED));
       return;
     }
 
@@ -714,7 +755,7 @@ public class HuntCommand implements CommandExecutor {
     prepPhaseManager.removeMapVote(player);
 
     if (!removed) {
-      player.sendMessage(Component.text("Failed to remove map vote!", NamedTextColor.RED));
+      HuntMessages.send(player, Component.text("Failed to remove map vote!", NamedTextColor.RED));
     }
   }
 
@@ -727,7 +768,8 @@ public class HuntCommand implements CommandExecutor {
     try {
       File huntConfigFile = new File(plugin.getDataFolder(), "hunt.yml");
       if (!huntConfigFile.exists()) {
-        player.sendMessage(Component.text("Hunt configuration not found!", NamedTextColor.RED));
+        HuntMessages.send(
+            player, Component.text("Hunt configuration not found!", NamedTextColor.RED));
         return;
       }
 
@@ -736,7 +778,8 @@ public class HuntCommand implements CommandExecutor {
       String worldName = huntConfig.getString("hunt.world", "world");
       World world = Bukkit.getWorld(worldName);
       if (world == null) {
-        player.sendMessage(
+        HuntMessages.send(
+            player,
             Component.text("Hunt world '" + worldName + "' not found!", NamedTextColor.RED));
         return;
       }
@@ -766,10 +809,11 @@ public class HuntCommand implements CommandExecutor {
                 }
               },
               2L);
-      player.sendMessage(Component.text("Welcome to the Hunt!", NamedTextColor.GREEN));
+      HuntMessages.send(player, Component.text("Welcome to the Hunt!", NamedTextColor.GREEN));
 
     } catch (Exception e) {
-      player.sendMessage(Component.text("Failed to teleport to hunt spawn!", NamedTextColor.RED));
+      HuntMessages.send(
+          player, Component.text("Failed to teleport to hunt spawn!", NamedTextColor.RED));
       plugin.getLogger().warning("Failed to teleport player to hunt spawn: " + e.getMessage());
     }
   }
@@ -859,11 +903,13 @@ public class HuntCommand implements CommandExecutor {
     // Check minimum players requirement
     int minimumPlayers = strategy.getMinimumPlayers();
     if (totalPlayersWithRequirements < minimumPlayers) {
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text(
               "Not enough players meet the requirements for " + currentMode.getDisplayName() + "!",
               NamedTextColor.RED));
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text(
               "Need "
                   + minimumPlayers
@@ -876,7 +922,8 @@ public class HuntCommand implements CommandExecutor {
 
     // Check if all eligible players are ready
     if (readyPlayers < totalPlayersWithRequirements) {
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text(
               "Not all players are ready! ("
                   + readyPlayers
@@ -886,7 +933,8 @@ public class HuntCommand implements CommandExecutor {
               NamedTextColor.RED));
 
       if (!unreadyPlayers.isEmpty()) {
-        player.sendMessage(
+        HuntMessages.send(
+            player,
             Component.text(
                 "Unready players: " + String.join(", ", unreadyPlayers), NamedTextColor.YELLOW));
       }

@@ -15,7 +15,7 @@ commands:
   huntgamemode:
     description: Manage the Hunt gamemode (Prop Hunt or Imposter Hunt)
     usage: /huntgamemode [prophunt|imposterhunt]
-    aliases: [huntmode, gamemode]
+    aliases: [huntmode]
   stdisguise:
     description: Manage entity disguises in the lobby
     usage: /stdisguise [apply|remove|reload]

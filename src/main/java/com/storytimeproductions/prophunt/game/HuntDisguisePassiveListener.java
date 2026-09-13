@@ -1,5 +1,6 @@
 package com.storytimeproductions.prophunt.game;
 
+import com.storytimeproductions.prophunt.util.HuntMessages;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -352,7 +353,8 @@ public class HuntDisguisePassiveListener implements Listener {
               // Strip the hider's block disguise — they must escape and re-disguise
               DisguiseAPI.undisguiseToAll(nearestHider);
               nearestHider.setGlowing(true);
-              nearestHider.sendMessage(
+              HuntMessages.send(
+                  nearestHider,
                   Component.text("Herobrine sees you! Run and re-disguise!", NamedTextColor.RED));
 
               final Player exposed = nearestHider;
@@ -743,7 +745,8 @@ public class HuntDisguisePassiveListener implements Listener {
                   // Strip the hider's disguise — they must escape and re-disguise
                   DisguiseAPI.undisguiseToAll(nearestHider);
                   nearestHider.setGlowing(true);
-                  nearestHider.sendMessage(
+                  HuntMessages.send(
+                      nearestHider,
                       Component.text(
                           "The Scarecrow's clone caught you! Run and re-disguise!",
                           NamedTextColor.RED));

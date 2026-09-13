@@ -136,7 +136,8 @@ public class HuntLobbyManager {
     HuntPlayerData data = getOrCreatePlayerData(player.getUniqueId());
 
     if (data.getSelectedTeam() == null) {
-      player.sendMessage(Component.text("Please select a team first!", NamedTextColor.RED));
+      com.storytimeproductions.prophunt.util.HuntMessages.send(
+          player, Component.text("Please select a team first!", NamedTextColor.RED));
       return;
     }
 

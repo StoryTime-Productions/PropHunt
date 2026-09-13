@@ -1,5 +1,6 @@
 package com.storytimeproductions.prophunt.game;
 
+import com.storytimeproductions.prophunt.util.HuntMessages;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -99,7 +100,8 @@ public class HuntLobbyListener implements Listener {
       case "Select Team" -> {
         // Block team selection in Imposter Hunt mode
         if (gameModeManager.getCurrentGameMode() == HuntGameMode.IMPOSTER_HUNT) {
-          player.sendMessage(
+          HuntMessages.send(
+              player,
               Component.text(
                   "Team selection is not available in Imposter Hunt mode!", NamedTextColor.RED));
           return;
@@ -109,7 +111,8 @@ public class HuntLobbyListener implements Listener {
       case "Select Class" -> {
         // Block class selection in Imposter Hunt mode
         if (gameModeManager.getCurrentGameMode() == HuntGameMode.IMPOSTER_HUNT) {
-          player.sendMessage(
+          HuntMessages.send(
+              player,
               Component.text(
                   "Class selection is not available in Imposter Hunt mode!", NamedTextColor.RED));
           return;
@@ -126,7 +129,8 @@ public class HuntLobbyListener implements Listener {
             data.setReady(newReadyValue);
           } else {
             data.setReady(newReadyValue);
-            player.sendMessage(
+            HuntMessages.send(
+                player,
                 Component.text(
                     data.isReady() ? "You are now ready!" : "You are no longer ready.",
                     data.isReady() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
@@ -134,7 +138,8 @@ public class HuntLobbyListener implements Listener {
           lobbyManager.refreshAllSidebars();
           lobbyManager.openMainMenu(player); // Refresh menu
         } else {
-          player.sendMessage(
+          HuntMessages.send(
+              player,
               Component.text(
                   "Please complete all selections before readying up!", NamedTextColor.RED));
         }
@@ -142,7 +147,7 @@ public class HuntLobbyListener implements Listener {
       case "Back" -> {
         player.closeInventory();
         lobbyManager.removePlayer(player.getUniqueId());
-        player.sendMessage(Component.text("Exited Hunt Lobby", NamedTextColor.YELLOW));
+        HuntMessages.send(player, Component.text("Exited Hunt Lobby", NamedTextColor.YELLOW));
       }
       default -> {
         // No action
@@ -153,7 +158,8 @@ public class HuntLobbyListener implements Listener {
   private void handleTeamSelectionClick(Player player, HuntPlayerData data, String itemName) {
     // Block team selection in Imposter Hunt mode
     if (gameModeManager.getCurrentGameMode() == HuntGameMode.IMPOSTER_HUNT) {
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text(
               "Team selection is not available in Imposter Hunt mode!", NamedTextColor.RED));
       lobbyManager.openMainMenu(player);
@@ -164,13 +170,13 @@ public class HuntLobbyListener implements Listener {
       case "Hunters" -> {
         data.setSelectedTeam(HuntTeam.HUNTERS);
         data.setSelectedHiderClass(null); // Clear opposite team class
-        player.sendMessage(Component.text("Selected team: Hunters", NamedTextColor.GREEN));
+        HuntMessages.send(player, Component.text("Selected team: Hunters", NamedTextColor.GREEN));
         lobbyManager.openMainMenu(player);
       }
       case "Hiders" -> {
         data.setSelectedTeam(HuntTeam.HIDERS);
         data.setSelectedHunterClass(null); // Clear opposite team class
-        player.sendMessage(Component.text("Selected team: Hiders", NamedTextColor.GREEN));
+        HuntMessages.send(player, Component.text("Selected team: Hiders", NamedTextColor.GREEN));
         lobbyManager.openMainMenu(player);
       }
       case "Back" -> lobbyManager.openMainMenu(player);
@@ -183,7 +189,8 @@ public class HuntLobbyListener implements Listener {
   private void handleHunterClassClick(Player player, HuntPlayerData data, int slot) {
     // Block class selection in Imposter Hunt mode
     if (gameModeManager.getCurrentGameMode() == HuntGameMode.IMPOSTER_HUNT) {
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text(
               "Class selection is not available in Imposter Hunt mode!", NamedTextColor.RED));
       lobbyManager.openMainMenu(player);
@@ -216,7 +223,8 @@ public class HuntLobbyListener implements Listener {
   private void handleHiderClassClick(Player player, HuntPlayerData data, int slot) {
     // Block class selection in Imposter Hunt mode
     if (gameModeManager.getCurrentGameMode() == HuntGameMode.IMPOSTER_HUNT) {
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text(
               "Class selection is not available in Imposter Hunt mode!", NamedTextColor.RED));
       lobbyManager.openMainMenu(player);
@@ -251,38 +259,43 @@ public class HuntLobbyListener implements Listener {
 
   private void sendHunterClassInfo(Player player, HunterClass cls) {
     Component divider = Component.text("────────────────────────────", NamedTextColor.DARK_GRAY);
-    player.sendMessage(divider);
-    player.sendMessage(
+    HuntMessages.send(player, divider);
+    HuntMessages.send(
+        player,
         Component.text("  ⚔ ", NamedTextColor.RED)
             .append(
                 Component.text(cls.getDisplayName().toUpperCase(), NamedTextColor.RED)
                     .decorate(TextDecoration.BOLD))
             .append(Component.text("  (Hunter)", NamedTextColor.GRAY)));
-    player.sendMessage(Component.text("  " + cls.getDescription(), NamedTextColor.YELLOW));
-    player.sendMessage(Component.empty());
-    player.sendMessage(
+    HuntMessages.send(player, Component.text("  " + cls.getDescription(), NamedTextColor.YELLOW));
+    HuntMessages.send(player, Component.empty());
+    HuntMessages.send(
+        player,
         Component.text("  Speed: ", NamedTextColor.GRAY)
             .append(Component.text(cls.getSpeedModifier() + "×", NamedTextColor.WHITE))
             .append(Component.text("   Damage: ", NamedTextColor.GRAY))
             .append(Component.text(cls.getDamageModifier() + "×", NamedTextColor.WHITE)));
-    player.sendMessage(
+    HuntMessages.send(
+        player,
         Component.text("  Melee:  ", NamedTextColor.GRAY)
             .append(
                 Component.text(
                     formatItemName(cls.getMeleeWeapon().getType().name()), NamedTextColor.WHITE)));
-    player.sendMessage(
+    HuntMessages.send(
+        player,
         Component.text("  Ranged: ", NamedTextColor.GRAY)
             .append(
                 Component.text(
                     formatItemName(cls.getRangedWeapon().getType().name()), NamedTextColor.WHITE)));
-    player.sendMessage(
+    HuntMessages.send(
+        player,
         Component.text("  Utility: ", NamedTextColor.GRAY)
             .append(Component.text("[" + cls.getAbilityName() + "]", NamedTextColor.GOLD))
             .append(Component.text(" — " + cls.getAbilityDescription(), NamedTextColor.WHITE))
             .append(
                 Component.text(
                     " (" + cls.getAbilityCooldownSeconds() + "s CD)", NamedTextColor.DARK_AQUA)));
-    player.sendMessage(divider);
+    HuntMessages.send(player, divider);
     player.sendActionBar(
         Component.text("Selected: ", NamedTextColor.GRAY)
             .append(Component.text(cls.getDisplayName(), NamedTextColor.RED)));
@@ -290,26 +303,29 @@ public class HuntLobbyListener implements Listener {
 
   private void sendHiderClassInfo(Player player, HiderClass cls) {
     Component divider = Component.text("────────────────────────────", NamedTextColor.DARK_GRAY);
-    player.sendMessage(divider);
-    player.sendMessage(
+    HuntMessages.send(player, divider);
+    HuntMessages.send(
+        player,
         Component.text("  ◈ ", NamedTextColor.AQUA)
             .append(
                 Component.text(cls.getDisplayName().toUpperCase(), NamedTextColor.AQUA)
                     .decorate(TextDecoration.BOLD))
             .append(Component.text("  (Hider)", NamedTextColor.GRAY)));
-    player.sendMessage(Component.text("  " + cls.getDescription(), NamedTextColor.YELLOW));
-    player.sendMessage(Component.empty());
-    player.sendMessage(
+    HuntMessages.send(player, Component.text("  " + cls.getDescription(), NamedTextColor.YELLOW));
+    HuntMessages.send(player, Component.empty());
+    HuntMessages.send(
+        player,
         Component.text("  Utility: ", NamedTextColor.GRAY)
             .append(Component.text("[" + cls.getAbilityName() + "]", NamedTextColor.AQUA))
             .append(
                 Component.text(
                     " (" + cls.getAbilityCooldownSeconds() + "s CD)", NamedTextColor.DARK_AQUA)));
-    player.sendMessage(
+    HuntMessages.send(
+        player,
         Component.text("  Shared:  ", NamedTextColor.GRAY)
             .append(Component.text("[Block Disguise]", NamedTextColor.AQUA))
             .append(Component.text(" (30s CD)", NamedTextColor.DARK_AQUA)));
-    player.sendMessage(divider);
+    HuntMessages.send(player, divider);
     player.sendActionBar(
         Component.text("Selected: ", NamedTextColor.GRAY)
             .append(Component.text(cls.getDisplayName(), NamedTextColor.AQUA)));
@@ -333,7 +349,8 @@ public class HuntLobbyListener implements Listener {
 
     if (mapIndex >= 0 && mapIndex < maps.length) {
       data.setPreferredMap(maps[mapIndex]);
-      player.sendMessage(
+      HuntMessages.send(
+          player,
           Component.text("Selected map: " + maps[mapIndex].getDisplayName(), NamedTextColor.GREEN));
       lobbyManager.openMainMenu(player);
     } else if (slot == 13) {
@@ -345,12 +362,13 @@ public class HuntLobbyListener implements Listener {
     switch (slot) {
       case 2 -> {
         lobbyManager.handleGameModeSelection(player, HuntGameMode.PROP_HUNT);
-        player.sendMessage(Component.text("Selected mode: Prop Hunt", NamedTextColor.GREEN));
+        HuntMessages.send(player, Component.text("Selected mode: Prop Hunt", NamedTextColor.GREEN));
         lobbyManager.openMainMenu(player);
       }
       case 5 -> {
         lobbyManager.handleGameModeSelection(player, HuntGameMode.IMPOSTER_HUNT);
-        player.sendMessage(Component.text("Selected mode: Imposter Hunt", NamedTextColor.GREEN));
+        HuntMessages.send(
+            player, Component.text("Selected mode: Imposter Hunt", NamedTextColor.GREEN));
         lobbyManager.openMainMenu(player);
       }
       case 13 -> lobbyManager.openMainMenu(player); // Back button
