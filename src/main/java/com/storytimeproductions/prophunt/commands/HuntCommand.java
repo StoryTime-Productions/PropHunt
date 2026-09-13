@@ -480,9 +480,7 @@ public class HuntCommand implements CommandExecutor {
             // Remove any existing kit first, then give new kit
             kitManager.removePlayerKit(player);
             kitManager.giveHunterKit(player, hunterClass);
-            player.sendMessage(
-                Component.text(
-                    "Joined " + hunterClass.getDisplayName() + " (Hunter)", NamedTextColor.GREEN));
+            lobbyManager.showSidebar(player);
 
             // Update prep phase holograms if prep phase is active
             prepPhaseManager.updatePlayerClassSelection(
@@ -496,9 +494,7 @@ public class HuntCommand implements CommandExecutor {
             }
 
             kitManager.removePlayerKit(player);
-            player.sendMessage(
-                Component.text(
-                    "Left " + hunterClass.getDisplayName() + " (Hunter)", NamedTextColor.YELLOW));
+            lobbyManager.showSidebar(player);
 
             // Update prep phase holograms if prep phase is active
             prepPhaseManager.updatePlayerClassSelection(player.getUniqueId(), null, null);
@@ -546,9 +542,7 @@ public class HuntCommand implements CommandExecutor {
             // Remove any existing kit first, then give new kit
             kitManager.removePlayerKit(player);
             kitManager.giveHiderKit(player, hiderClass);
-            player.sendMessage(
-                Component.text(
-                    "Joined " + hiderClass.getDisplayName() + " (Hider)", NamedTextColor.GREEN));
+            lobbyManager.showSidebar(player);
 
             // Update prep phase holograms if prep phase is active
             prepPhaseManager.updatePlayerClassSelection(
@@ -562,9 +556,7 @@ public class HuntCommand implements CommandExecutor {
             }
 
             kitManager.removePlayerKit(player);
-            player.sendMessage(
-                Component.text(
-                    "Left " + hiderClass.getDisplayName() + " (Hider)", NamedTextColor.YELLOW));
+            lobbyManager.showSidebar(player);
 
             // Update prep phase holograms if prep phase is active
             prepPhaseManager.updatePlayerClassSelection(player.getUniqueId(), null, null);
@@ -636,6 +628,7 @@ public class HuntCommand implements CommandExecutor {
             // manager)
             // player.sendMessage already called by prepPhaseManager.removeMapVote
           }
+          lobbyManager.showSidebar(player);
         }
         return;
       }

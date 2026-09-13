@@ -171,6 +171,10 @@ public class HuntPrepPhaseManager {
     // players vote fresh each round).
     resyncPersistedPlayerSelections();
 
+    // Carry forward anyone already marked ready in the lobby GUI before this prep phase
+    // started, so the playerReadyStatus.clear() above doesn't force them to re-ready.
+    resyncPersistedReadyStatus();
+
     // Initialize start game hologram
     initializeStartGameHologram();
 
@@ -179,6 +183,8 @@ public class HuntPrepPhaseManager {
 
     // Update start game hologram to initial state
     updateStartGameHologram();
+
+    lobbyManager.refreshAllSidebars();
 
     // Notify all players
     for (Player player : Bukkit.getOnlinePlayers()) {
@@ -230,6 +236,22 @@ public class HuntPrepPhaseManager {
           .getLogger()
           .info(
               "Re-synced persisted role for " + player.getName() + ": " + team + " / " + className);
+    }
+  }
+
+  /**
+   * Carries forward each online player's ready status from their persisted {@link HuntPlayerData}
+   * (set via the lobby GUI's Ready!/Not Ready button, which works even before prep phase starts)
+   * into {@link #playerReadyStatus}, so a player who was already ready doesn't lose that status
+   * when {@link #startPrepPhase()} clears the map.
+   */
+  private void resyncPersistedReadyStatus() {
+    for (Player player : Bukkit.getOnlinePlayers()) {
+      UUID playerId = player.getUniqueId();
+      HuntPlayerData data = lobbyManager.getPlayerData(playerId);
+      if (data != null && data.isReady()) {
+        playerReadyStatus.put(playerId, true);
+      }
     }
   }
 
@@ -394,6 +416,8 @@ public class HuntPrepPhaseManager {
 
     // Update ready status hologram
     updateReadyStatusHologram();
+
+    lobbyManager.refreshAllSidebars();
 
     // Check if all players are ready
     checkAllPlayersReady();
@@ -1013,6 +1037,11 @@ public class HuntPrepPhaseManager {
 
   /** Releases hunters from lock-in by removing effects and announcing. */
   private void releaseHunters() {
+    // Round has begun - the lobby sidebar (role/class/ready) no longer applies.
+    for (UUID playerId : gameParticipants.keySet()) {
+      lobbyManager.clearSidebar(playerId);
+    }
+
     // Create copies of participant lists to avoid ConcurrentModificationException
     Map<UUID, HuntTeam> participantsCopy = new HashMap<>(gameParticipants);
 

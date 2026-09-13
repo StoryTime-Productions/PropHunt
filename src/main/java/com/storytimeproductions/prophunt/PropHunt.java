@@ -79,7 +79,7 @@ public class PropHunt extends JavaPlugin {
     getServer().getPluginManager().registerEvents(huntDisguiseNpcManager, this);
     Bukkit.getScheduler().runTaskLater(this, huntDisguiseNpcManager::loadAndSpawn, 40L);
 
-    huntLobbyManager = new HuntLobbyManager();
+    huntLobbyManager = new HuntLobbyManager(huntGameModeManager);
     huntDisguiseManager.setLobbyManager(huntLobbyManager);
 
     HuntKitManager huntKitManager = new HuntKitManager(this);
@@ -104,13 +104,16 @@ public class PropHunt extends JavaPlugin {
             imposterGameManager);
 
     huntDisguiseManager.setPrepPhaseManager(huntPrepPhaseManager);
+    huntLobbyManager.setPrepPhaseManager(huntPrepPhaseManager);
 
     huntGameModeManager.setDependencies(
         huntLobbyManager, huntKitManager, huntDisguiseManager, huntHologramManager);
 
     getServer()
         .getPluginManager()
-        .registerEvents(new HuntLobbyListener(huntLobbyManager, huntGameModeManager), this);
+        .registerEvents(
+            new HuntLobbyListener(huntLobbyManager, huntGameModeManager, huntPrepPhaseManager),
+            this);
     getServer()
         .getPluginManager()
         .registerEvents(

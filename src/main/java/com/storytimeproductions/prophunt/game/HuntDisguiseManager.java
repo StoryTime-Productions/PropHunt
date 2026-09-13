@@ -246,6 +246,7 @@ public class HuntDisguiseManager {
           playerData.setSelectedDisguise(displayName);
           playerData.setSelectedDisguiseSkin(skinName);
         }
+        lobbyManager.showSidebar(player);
       }
 
       int duration = huntConfig.getInt("hunt.disguise.duration", 0);
@@ -318,6 +319,7 @@ public class HuntDisguiseManager {
           playerData.setSelectedDisguise(null);
           playerData.setSelectedDisguiseSkin(null);
         }
+        lobbyManager.showSidebar(player);
       }
 
       player.sendMessage(Component.text("Disguise removed!", NamedTextColor.YELLOW));

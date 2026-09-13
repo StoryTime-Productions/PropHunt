@@ -21,16 +21,22 @@ public class HuntLobbyManager {
 
   private final Map<UUID, HuntPlayerData> playerData;
   private final Map<UUID, Inventory> openMenus;
+  private final HuntLobbySidebarService sidebarService;
+  private final HuntGameModeManager gameModeManager;
+  private HuntPrepPhaseManager prepPhaseManager;
 
-  /** Constructs a new HuntLobbyManager with the given plugin instance. */
-  public HuntLobbyManager() {
+  /** Constructs a new HuntLobbyManager, using the game mode manager for the sidebar's title. */
+  public HuntLobbyManager(HuntGameModeManager gameModeManager) {
     this.playerData = new HashMap<>();
     this.openMenus = new HashMap<>();
+    this.sidebarService = new HuntLobbySidebarService("hunt_lobby");
+    this.gameModeManager = gameModeManager;
   }
 
   /** Opens the main Hunt lobby menu for a player. */
   public void openMainMenu(Player player) {
     HuntPlayerData data = getOrCreatePlayerData(player.getUniqueId());
+    refreshSidebar(player, data);
 
     Inventory menu = Bukkit.createInventory(null, 27, Component.text("Hunt Game Lobby"));
 
@@ -248,6 +254,44 @@ public class HuntLobbyManager {
     return playerData.computeIfAbsent(playerId, HuntPlayerData::new);
   }
 
+  /**
+   * Sets the prep phase manager dependency, used to read a player's map vote for the sidebar (map
+   * votes are tracked there, not in {@link HuntPlayerData}).
+   */
+  public void setPrepPhaseManager(HuntPrepPhaseManager prepPhaseManager) {
+    this.prepPhaseManager = prepPhaseManager;
+  }
+
+  /** Applies/refreshes a single player's sidebar, creating their lobby data if needed. */
+  public void showSidebar(Player player) {
+    refreshSidebar(player, getOrCreatePlayerData(player.getUniqueId()));
+  }
+
+  private void refreshSidebar(Player player, HuntPlayerData data) {
+    if (gameModeManager.getCurrentGameMode() == HuntGameMode.IMPOSTER_HUNT) {
+      sidebarService.clearSidebar(player);
+      return;
+    }
+
+    int readyCount = 0;
+    for (HuntPlayerData other : playerData.values()) {
+      if (other.isReady()) {
+        readyCount++;
+      }
+    }
+    HuntMap votedMap =
+        prepPhaseManager != null
+            ? prepPhaseManager.getPlayerMapVotes().get(player.getUniqueId())
+            : null;
+    sidebarService.applySidebar(
+        player,
+        data,
+        votedMap,
+        readyCount,
+        playerData.size(),
+        gameModeManager.getCurrentGameMode());
+  }
+
   private ItemStack createMenuItem(Material material, String name, String description) {
     ItemStack item = new ItemStack(material);
     ItemMeta meta = item.getItemMeta();
@@ -330,8 +374,17 @@ public class HuntLobbyManager {
    * @param playerId The UUID of the player to remove
    */
   public void removePlayer(UUID playerId) {
+    clearSidebar(playerId);
     playerData.remove(playerId);
     openMenus.remove(playerId);
+  }
+
+  /** Clears the given player's lobby sidebar, if they are online. */
+  public void clearSidebar(UUID playerId) {
+    Player player = Bukkit.getPlayer(playerId);
+    if (player != null) {
+      sidebarService.clearSidebar(player);
+    }
   }
 
   /**
@@ -374,5 +427,44 @@ public class HuntLobbyManager {
   public void handleGameModeSelection(Player player, HuntGameMode gameMode) {
     HuntPlayerData data = getOrCreatePlayerData(player.getUniqueId());
     data.setPreferredGameMode(gameMode);
+  }
+
+  /**
+   * Re-renders every currently-tracked lobby player's sidebar, since one player's ready toggle
+   * changes the shared ready/total count shown on everyone else's sidebar too.
+   */
+  public void refreshAllSidebars() {
+    HuntGameMode currentGameMode = gameModeManager.getCurrentGameMode();
+    if (currentGameMode == HuntGameMode.IMPOSTER_HUNT) {
+      for (UUID playerId : playerData.keySet()) {
+        Player player = Bukkit.getPlayer(playerId);
+        if (player != null) {
+          sidebarService.clearSidebar(player);
+        }
+      }
+      return;
+    }
+
+    int readyCount = 0;
+    for (HuntPlayerData data : playerData.values()) {
+      if (data.isReady()) {
+        readyCount++;
+      }
+    }
+    int totalCount = playerData.size();
+    Map<UUID, HuntMap> mapVotes =
+        prepPhaseManager != null ? prepPhaseManager.getPlayerMapVotes() : Map.of();
+    for (Map.Entry<UUID, HuntPlayerData> entry : playerData.entrySet()) {
+      Player player = Bukkit.getPlayer(entry.getKey());
+      if (player != null) {
+        sidebarService.applySidebar(
+            player,
+            entry.getValue(),
+            mapVotes.get(entry.getKey()),
+            readyCount,
+            totalCount,
+            currentGameMode);
+      }
+    }
   }
 }

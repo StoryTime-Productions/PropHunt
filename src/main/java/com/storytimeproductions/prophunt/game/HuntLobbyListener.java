@@ -22,16 +22,22 @@ public class HuntLobbyListener implements Listener {
 
   private final HuntLobbyManager lobbyManager;
   private final HuntGameModeManager gameModeManager;
+  private final HuntPrepPhaseManager prepPhaseManager;
 
   /**
    * Constructs a new HuntLobbyListener for the given lobby manager.
    *
    * @param lobbyManager The HuntLobbyManager instance
    * @param gameModeManager The HuntGameModeManager instance
+   * @param prepPhaseManager The HuntPrepPhaseManager instance
    */
-  public HuntLobbyListener(HuntLobbyManager lobbyManager, HuntGameModeManager gameModeManager) {
+  public HuntLobbyListener(
+      HuntLobbyManager lobbyManager,
+      HuntGameModeManager gameModeManager,
+      HuntPrepPhaseManager prepPhaseManager) {
     this.lobbyManager = lobbyManager;
     this.gameModeManager = gameModeManager;
+    this.prepPhaseManager = prepPhaseManager;
   }
 
   /**
@@ -114,11 +120,18 @@ public class HuntLobbyListener implements Listener {
       case "Select Game Mode" -> lobbyManager.openGameModeSelectionMenu(player);
       case "Ready!", "Not Ready" -> {
         if (data.hasValidSelections()) {
-          data.setReady(!data.isReady());
-          player.sendMessage(
-              Component.text(
-                  data.isReady() ? "You are now ready!" : "You are no longer ready.",
-                  data.isReady() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+          boolean newReadyValue = !data.isReady();
+          if (prepPhaseManager.isPrepPhaseActive()) {
+            prepPhaseManager.setPlayerReady(player, newReadyValue);
+            data.setReady(newReadyValue);
+          } else {
+            data.setReady(newReadyValue);
+            player.sendMessage(
+                Component.text(
+                    data.isReady() ? "You are now ready!" : "You are no longer ready.",
+                    data.isReady() ? NamedTextColor.GREEN : NamedTextColor.YELLOW));
+          }
+          lobbyManager.refreshAllSidebars();
           lobbyManager.openMainMenu(player); // Refresh menu
         } else {
           player.sendMessage(
