@@ -69,6 +69,12 @@ public class HuntHologramManager {
       return;
     }
 
+    // World#getEntitiesByClass only sees entities in currently loaded chunks. Force-load every
+    // hologram's chunk before the wipe below, or a stale entity from a prior session sitting in
+    // a chunk nobody has walked into yet since this restart survives the wipe untouched,
+    // overlapping the freshly spawned one at the same location.
+    preloadHologramChunks(world, huntConfig);
+
     // Wipe ALL text displays and hologram-tagged interaction entities before respawning
     world.getEntitiesByClass(TextDisplay.class).forEach(Entity::remove);
     world.getEntitiesByClass(Interaction.class).stream()
@@ -102,6 +108,38 @@ public class HuntHologramManager {
     // Delay title initialization so metadata packets are sent after the spawn packets
     Bukkit.getScheduler().runTaskLater(plugin, this::initializeClassHologramTitles, 2L);
     plugin.getLogger().info("Hunt holograms initialized");
+  }
+
+  /**
+   * Forces every configured hologram location's chunk to load synchronously, so the entity wipe in
+   * {@link #initialize(FileConfiguration)} can actually see stale entities left there from a prior
+   * session instead of silently skipping unloaded chunks.
+   */
+  private void preloadHologramChunks(World world, FileConfiguration config) {
+    List<String> paths = new ArrayList<>();
+    for (HunterClass c : HunterClass.values()) {
+      paths.add("hunt.holograms.hunter-classes." + c.name().toLowerCase());
+    }
+    for (HiderClass c : HiderClass.values()) {
+      paths.add("hunt.holograms.hider-classes." + c.name().toLowerCase());
+    }
+    for (HuntMap m : HuntMap.values()) {
+      paths.add("hunt.prep-phase.map-vote-holograms." + m.name().toLowerCase());
+    }
+    paths.add("hunt.prep-phase.start-hologram");
+    paths.add("hunt.prep-phase.ready-status");
+    paths.add("hunt.holograms.gamemode-selection");
+
+    for (String path : paths) {
+      ConfigurationSection section = config.getConfigurationSection(path);
+      if (section == null) {
+        continue;
+      }
+      Location loc =
+          new Location(
+              world, section.getDouble("x"), section.getDouble("y"), section.getDouble("z"));
+      loc.getChunk(); // synchronously loads the chunk if it isn't already
+    }
   }
 
   private void spawnFromConfig(String id, World world, FileConfiguration config, String path) {

@@ -80,6 +80,10 @@ public class HuntGameModeManager {
 
     // Update the gamemode hologram
     updateGameModeHologram();
+
+    if (lobbyManager != null) {
+      lobbyManager.refreshAllSidebars();
+    }
   }
 
   /**

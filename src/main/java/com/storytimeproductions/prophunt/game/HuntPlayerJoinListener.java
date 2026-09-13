@@ -60,6 +60,8 @@ public class HuntPlayerJoinListener implements Listener {
       kitManager.removePlayerKit(player);
     }
 
+    lobbyManager.showSidebar(player);
+
     // Schedule the size reset with a small delay to ensure the player is fully
     // loaded
     plugin
